@@ -1,0 +1,10 @@
+/* Simple page padding for GameViewer */
+:root {
+	--page-padding: 20px;
+}
+
+/* Apply padding to the main page container (body as fallback) */
+.gameviewer-page,
+body {
+	padding: var(--page-padding);
+}
