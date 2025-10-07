@@ -27,7 +27,28 @@ export default class MyChess extends Chess {
 
   public getMostRecentMoveSquares(): { from: string; to: string } | null {
     if (this.history().length === 0) return null;
-    const lastMove = this.history({verbose: true})[this.history().length - 1];
-    return {from: lastMove.from, to: lastMove.to};
+    const lastMove = this.history({ verbose: true })[this.history().length - 1];
+    return { from: lastMove.from, to: lastMove.to };
+  }
+
+  public getAllGameMoves(): string[] {
+    return this._persistentGameMoves;
+  }
+
+  public getCurrentPly(): number {
+    return this.history().length;
+  }
+
+  public goToMove(ply: number): void {
+    if (ply < 0 || ply > this._persistentGameMoves.length) {
+      throw new Error(`Invalid ply number ${ply}`);
+    }
+    while (this.getCurrentPly() < ply) {
+      const nextMove = this.getNextMove();
+      if (nextMove) this.move(nextMove);
+    }
+    while (this.getCurrentPly() > ply) {
+      this.undo();
+    }
   }
 }
