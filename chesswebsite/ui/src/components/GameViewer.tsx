@@ -17,6 +17,7 @@ type GameViewerProps = {
   onMoveRequest?: (move: MoveRequest) => boolean;
   pieceDraggingEnabled?: boolean;
   boardOrientation?: "white" | "black";
+  currentPly?: number;
 };
 
 export default function GameViewer({
@@ -25,6 +26,7 @@ export default function GameViewer({
   onMoveRequest = () => true,
   pieceDraggingEnabled = false,
   boardOrientation = "white",
+  currentPly: initialPly = undefined,
 }: GameViewerProps) {
   // the chessGame that we will build the viewer around
   const chessGameRef = useRef<ReactiveChess>(chessGameInstance);
@@ -32,33 +34,50 @@ export default function GameViewer({
 
   // state we derive from chessGame, will only be updated from subscription to chessGame object
   const [fen, setFen] = useState(chessGame.fen());
-  const [moveRows, setMoveRows] = useState<
-    { white: string | null; black: string | null }[]
-  >(chessGame.getMoveRows());
+
   const [headers, setHeaders] = useState<{ [key: string]: string }>(() =>
     chessGame.getHeaders()
   );
-  const [currentPly, setCurrentPly] = useState(chessGame.getCurrentPly());
+  const [history, setHistory] = useState(chessGame.history({ verbose: true }));
+  const [currentPly, setCurrentPly] = useState(history.length);
   const [lastMoveSquares, setLastMoveSquares] = useState<{
     from: string;
     to: string;
-  } | null>(chessGame.getMostRecentMoveSquares());
+  } | null>(null);
   
   // subscribe to chessGame changes and update state whenever the game changes
   useEffect(() => {
     const onGameChange = () => {
-      setFen(chessGame.fen());
-      setMoveRows(chessGame.getMoveRows());
       setHeaders(chessGame.getHeaders());
-      setCurrentPly(chessGame.getCurrentPly());
-      setLastMoveSquares(chessGame.getMostRecentMoveSquares());
+      setHistory(chessGame.history({ verbose: true }));
+      if (initialPly !== undefined) {
+        setCurrentPly(Math.min(initialPly, chessGame.history().length));
+      }
     };
     const unsub = chessGame.subscribe(onGameChange);
     onGameChange();
     return () => {
       unsub();
     };
-  }, [chessGameInstance]);
+  }, [chessGameInstance, initialPly]);
+
+  // the currentPly will determine the position we see
+  useEffect(() => {
+    setFen(() => {
+      if (history.length === 0) {
+        return chessGame.fen();
+      }
+      if (currentPly === 0) {
+        return history[0].before;
+      }
+      return history[currentPly - 1].after;
+    });
+    setLastMoveSquares(() => {
+      if (history.length === 0 || currentPly === 0) return null;
+      return {from: history[currentPly - 1].from, to: history[currentPly - 1].to}
+    }
+    );
+  }, [currentPly, chessGame, history]);
 
   // whether the board is oriented with white or black at the bottom
   const [boardOrientationState, setBoardOrientationState] = useState<
@@ -77,21 +96,20 @@ export default function GameViewer({
       if (isTypingField) return;
 
       if (event.key === "ArrowRight") {
-        chessGame.navigateForwardOneMove();
+        setCurrentPly((prev) => Math.min(prev + 1, history.length));
       }
       if (event.key === "ArrowLeft") {
-        if (chessGame.navigateBackOneMove()) {
-        }
+        setCurrentPly((prev) => Math.max(prev - 1, 0));
       }
       if (event.key === "ArrowUp") {
         // prevent page scroll
         event.preventDefault();
-        chessGame.goToMove(0);
+        setCurrentPly(0);
       }
       if (event.key === "ArrowDown") {
         // prevent page scroll
         event.preventDefault();
-        chessGame.goToMove(chessGame.getAllGameMoves().length);
+        setCurrentPly(history.length);
       }
       if (event.key === "f") {
         setBoardOrientationState((prev) =>
@@ -103,15 +121,15 @@ export default function GameViewer({
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [boardOrientationState]);
+  }, [boardOrientationState, currentPly, history]);
 
   // memo the style for the chessboard so it doesn't get recreated on every render
   const memoBoardStyle = useMemo(() => {
     return {
       ...defaultBoardStyle(8),
       margin: "0 auto",
-      height: "75vh",
-      width: "75vh",
+      height: "70vh",
+      width: "70vh",
     };
   }, []);
   
@@ -122,15 +140,19 @@ export default function GameViewer({
           return false;
         }
         // must be at most recent move
-        if (chessGame.getCurrentPly() !== chessGame.getAllGameMoves().length) {
+        if (currentPly !== history.length) {
           return false;
         }
-        return onMoveRequest({
+        const moveAccepted = onMoveRequest({
           from: sourceSquare,
           to: targetSquare,
           promotion: "q",
         });
-  }, [onMoveRequest]);
+        if (moveAccepted){
+          setCurrentPly((prev) => prev + 1);
+        }
+        return moveAccepted;
+  }, [onMoveRequest, history, currentPly]);
 
   // Background square colors for last move
   const backgroundFromColor = "rgba(255, 255, 0, 0.4)";
@@ -172,10 +194,21 @@ export default function GameViewer({
     }
   }, [currentPly]);
 
+  const moveRows = useMemo(() => {
+    const rows: { white: string | null; black: string | null }[] = [];
+    for (let i = 0; i < history.length; i += 2) {
+      rows.push({
+        white: history[i] ? history[i].san : null,
+        black: history[i + 1] ? history[i + 1].san : null,
+      });
+    }
+    return rows;
+  }, [history]);
+
   // players and result from headers we display
-  const whitePlayer = chessGame.getHeaders()["White"] ?? null;
-  const blackPlayer = chessGame.getHeaders()["Black"] ?? null;
-  const result = chessGame.getHeaders()["Result"] ?? null;
+  const whitePlayer = headers["White"] ?? null;
+  const blackPlayer = headers["Black"] ?? null;
+  const result = headers["Result"] ?? null;
 
   return (
     <div className="gameviewer-page">
@@ -208,18 +241,17 @@ export default function GameViewer({
                 {moveRows.map((r, idx) => {
                   const whitePly = idx * 2 + 1; // ply numbers starting at 1
                   const blackPly = idx * 2 + 2;
-                  const plyIndex = chessGame.getCurrentPly(); // current ply index
                   return (
                     <tr key={idx + 1} className={"notation-row"}>
                       <td className="notation-movenumber">{idx + 1}.</td>
                       <td
                         className={
                           "notation-move " +
-                          (plyIndex === whitePly ? "current" : "")
+                          (currentPly === whitePly ? "current" : "")
                         }
                         onClick={(e) => {
                           e.preventDefault();
-                          chessGame.goToMove(whitePly);
+                          setCurrentPly(whitePly);
                         }}
                       >
                         {r.white ?? ""}
@@ -227,11 +259,11 @@ export default function GameViewer({
                       <td
                         className={
                           "notation-move " +
-                          (plyIndex === blackPly ? "current" : "")
+                          (currentPly === blackPly ? "current" : "")
                         }
                         onClick={(e) => {
                           e.preventDefault();
-                          chessGame.goToMove(blackPly);
+                          setCurrentPly(blackPly);
                         }}
                       >
                         {r.black ?? ""}

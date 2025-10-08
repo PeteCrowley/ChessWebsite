@@ -58,9 +58,9 @@ def get_engine_move(request) -> str:
             "message": "Engine could not find a move",
             }, status=500)
     
-    best_move = result.move.uci()
-    print("Engine suggests move:", best_move)
+    move = result.move.uci()
+    print("Engine suggests move:", move)
     return JsonResponse({
         "status": "ok",
-        "best_move": best_move,
+        "move": move,
     }, status=200)
