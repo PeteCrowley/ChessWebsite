@@ -7,4 +7,5 @@ urlpatterns = [
     path("games/", views.GameListView.as_view(), name="game-list"),
     path("games/<uuid:id>/", views.GameDetailView.as_view(), name="game-fetch"),
     path("games/add/", views.GameAddView.as_view(), name="game-add"),
+    path("engine/move/", views.get_engine_move, name="engine-move"),
 ]

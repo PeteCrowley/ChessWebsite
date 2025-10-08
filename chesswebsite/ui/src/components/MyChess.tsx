@@ -1,4 +1,4 @@
-import { Chess } from "chess.js";
+import { Chess, Move } from "chess.js";
 
 export default class MyChess extends Chess {
   constructor(params?: any) {
@@ -35,6 +35,18 @@ export default class MyChess extends Chess {
     return this._persistentGameMoves;
   }
 
+  override undo(): Move | null{
+    const move = super.undo();
+    if (move) {
+      this._persistentGameMoves.pop();
+    }
+    return move;
+  }
+
+  public navigateBackOneMove(): Move | null {
+    return super.undo();
+  }
+
   public getCurrentPly(): number {
     return this.history().length;
   }
@@ -48,7 +60,7 @@ export default class MyChess extends Chess {
       if (nextMove) this.move(nextMove);
     }
     while (this.getCurrentPly() > ply) {
-      this.undo();
+      this.navigateBackOneMove();
     }
   }
 }
