@@ -1,17 +1,18 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import {
   Chessboard,
   ChessboardOptions,
   defaultBoardStyle,
   fenStringToPositionObject,
+  PieceDropHandlerArgs,
 } from "react-chessboard";
-import MyChess from "./MyChess";
+import ReactiveChess from "./ReactiveChess";
 import "./css/GameViewer.css";
 
 type MoveRequest = { from: string; to: string; promotion?: string };
 
 type GameViewerProps = {
-  chessGame: MyChess;
+  chessGame: ReactiveChess;
   gameTitle: string;
   onMoveRequest?: (move: MoveRequest) => boolean;
   pieceDraggingEnabled?: boolean;
@@ -19,45 +20,50 @@ type GameViewerProps = {
 };
 
 export default function GameViewer({
-  chessGame,
+  chessGame: chessGameInstance,
   gameTitle,
   onMoveRequest = () => true,
   pieceDraggingEnabled = false,
   boardOrientation = "white",
 }: GameViewerProps) {
-  const chessGameRef = useRef<MyChess>(chessGame);
-  const chessGameInstance = chessGameRef.current;
+  // the chessGame that we will build the viewer around
+  const chessGameRef = useRef<ReactiveChess>(chessGameInstance);
+  const chessGame = chessGameRef.current;
 
-  // initial position from the chess instance
-  const [chessPosition, setChessPosition] = useState<string>(() =>
-    chessGameInstance.fen()
+  // state we derive from chessGame, will only be updated from subscription to chessGame object
+  const [fen, setFen] = useState(chessGame.fen());
+  const [moveRows, setMoveRows] = useState<
+    { white: string | null; black: string | null }[]
+  >(chessGame.getMoveRows());
+  const [headers, setHeaders] = useState<{ [key: string]: string }>(() =>
+    chessGame.getHeaders()
   );
+  const [currentPly, setCurrentPly] = useState(chessGame.getCurrentPly());
+  const [lastMoveSquares, setLastMoveSquares] = useState<{
+    from: string;
+    to: string;
+  } | null>(chessGame.getMostRecentMoveSquares());
+  
+  // subscribe to chessGame changes and update state whenever the game changes
+  useEffect(() => {
+    const onGameChange = () => {
+      setFen(chessGame.fen());
+      setMoveRows(chessGame.getMoveRows());
+      setHeaders(chessGame.getHeaders());
+      setCurrentPly(chessGame.getCurrentPly());
+      setLastMoveSquares(chessGame.getMostRecentMoveSquares());
+    };
+    const unsub = chessGame.subscribe(onGameChange);
+    onGameChange();
+    return () => {
+      unsub();
+    };
+  }, [chessGameInstance]);
 
+  // whether the board is oriented with white or black at the bottom
   const [boardOrientationState, setBoardOrientationState] = useState<
     "white" | "black"
   >(boardOrientation);
-
-  const moveRows = []
-  const allGameMoves = chessGameInstance.getAllGameMoves();
-  for (let i = 0; i < allGameMoves.length; i += 2) {
-    const white = allGameMoves[i] || null;
-    const black = allGameMoves[i + 1] || null;
-    moveRows.push({ white, black });
-  }
-
-  const [chessBoardOpts, setChessBoardOpts] = useState<
-    ChessboardOptions | undefined
-  >(undefined);
-
-  const whitePlayer = chessGameInstance.getHeaders()["White"] ?? null;
-  const blackPlayer = chessGameInstance.getHeaders()["Black"] ?? null;
-  const result = chessGameInstance.getHeaders()["Result"] ?? null;
-
-  // ref for the notation list container so we can auto-scroll the current move into view
-  const notationListRef = useRef<HTMLDivElement | null>(null);
-
-  const backgroundFromColor = "rgba(255, 255, 0, 0.4)";
-  const backgroundToColor = "rgba(255, 255, 0, 0.4)";
 
   // Handle game navigation via keyboard arrows
   useEffect(() => {
@@ -71,31 +77,26 @@ export default function GameViewer({
       if (isTypingField) return;
 
       if (event.key === "ArrowRight") {
-        const nextMove = chessGameInstance.getNextMove();
-        if (nextMove) {
-          chessGameInstance.move(nextMove);
-        }
-        setChessPosition(chessGameInstance.fen());
+        chessGame.navigateForwardOneMove();
       }
       if (event.key === "ArrowLeft") {
-        if (chessGameInstance.navigateBackOneMove()) {
-          setChessPosition(chessGameInstance.fen());
+        if (chessGame.navigateBackOneMove()) {
         }
       }
       if (event.key === "ArrowUp") {
         // prevent page scroll
         event.preventDefault();
-        chessGameInstance.goToMove(0);
-        setChessPosition(chessGameInstance.fen());
+        chessGame.goToMove(0);
       }
       if (event.key === "ArrowDown") {
         // prevent page scroll
         event.preventDefault();
-        chessGameInstance.goToMove(chessGameInstance.getAllGameMoves().length);
-        setChessPosition(chessGameInstance.fen());
+        chessGame.goToMove(chessGame.getAllGameMoves().length);
       }
-      if (event.key === "f"){
-        setBoardOrientationState(prev => (prev === "white" ? "black" : "white"));
+      if (event.key === "f") {
+        setBoardOrientationState((prev) =>
+          prev === "white" ? "black" : "white"
+        );
       }
     }
     window.addEventListener("keydown", handleKeyDown);
@@ -104,64 +105,100 @@ export default function GameViewer({
     };
   }, [boardOrientationState]);
 
-  // We want to do a few of things when the position changes, so centralize it here
-  useEffect(() => {
-    // Update last move squares
-    const lastMoveSquares = chessGameInstance.getMostRecentMoveSquares();
+  // memo the style for the chessboard so it doesn't get recreated on every render
+  const memoBoardStyle = useMemo(() => {
+    return {
+      ...defaultBoardStyle(8),
+      margin: "0 auto",
+      height: "75vh",
+      width: "75vh",
+    };
+  }, []);
+  
+  // the function called when a piece is dropped on a board (assuming pieces are draggable)
+  const handlePieceDropCallback = useCallback(({piece, sourceSquare, targetSquare}: 
+    PieceDropHandlerArgs) => {
+    if (!sourceSquare || !targetSquare) {
+          return false;
+        }
+        // must be at most recent move
+        if (chessGame.getCurrentPly() !== chessGame.getAllGameMoves().length) {
+          return false;
+        }
+        return onMoveRequest({
+          from: sourceSquare,
+          to: targetSquare,
+          promotion: "q",
+        });
+  }, [onMoveRequest]);
 
-    // Update chessboard options
-    const newOpts: ChessboardOptions = {
+  // Background square colors for last move
+  const backgroundFromColor = "rgba(255, 255, 0, 0.4)";
+  const backgroundToColor = "rgba(255, 255, 0, 0.4)";
+
+  // chessboard options, memoized so they don't get recreated on every render
+  const chessBoardOptions = useMemo<ChessboardOptions>(() => {
+    return {
       id: "GameViewer",
-      position: fenStringToPositionObject(chessPosition, 8, 8),
+      position: fenStringToPositionObject(fen, 8, 8),
       allowDragging: pieceDraggingEnabled,
       boardOrientation: boardOrientationState,
       squareStyles: lastMoveSquares
-        ? {
-            [lastMoveSquares.from]: { backgroundColor: backgroundFromColor },
-            [lastMoveSquares.to]: { backgroundColor: backgroundToColor },
-          }
-        : undefined,
-      boardStyle: {
-        ...defaultBoardStyle(8),
-        margin: "0 auto",
-        height: "75vh",
-        width: "75vh",
-      },
-      onPieceDrop: ({piece, sourceSquare, targetSquare}) => {
-        if (!sourceSquare || !targetSquare ){
-          return false;
-        }
-        return onMoveRequest({from: sourceSquare, to: targetSquare, promotion: "q"})
-      }
+       ?{
+          [lastMoveSquares.from]: { backgroundColor: backgroundFromColor },
+          [lastMoveSquares.to]: { backgroundColor: backgroundToColor },
+        }:
+        undefined,
+      boardStyle: memoBoardStyle,
+      onPieceDrop: handlePieceDropCallback,
     };
-    setChessBoardOpts(newOpts);
+  }, [fen, pieceDraggingEnabled, boardOrientationState, lastMoveSquares, onMoveRequest, chessGame]);
 
-    // auto-scroll the notation list when the position changes so the current move is visible
+  // ref for the notation list container so we can auto-scroll the current move into view
+  const notationListRef = useRef<HTMLDivElement | null>(null);
+  // auto-scroll the notation list when the position changes so the current move is visible
+  useEffect(() => {
     const container = notationListRef.current;
     if (!container) return;
     const currentEl = container.querySelector(".current") as HTMLElement | null;
     if (!currentEl) return;
     const containerRect = container.getBoundingClientRect();
     const elRect = currentEl.getBoundingClientRect();
-    if (elRect.top < containerRect.top || elRect.bottom > containerRect.bottom) {
+    if (
+      elRect.top < containerRect.top ||
+      elRect.bottom > containerRect.bottom
+    ) {
       currentEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
-  }, [chessPosition, pieceDraggingEnabled, boardOrientationState]);
-  
+  }, [currentPly]);
+
+  // players and result from headers we display
+  const whitePlayer = chessGame.getHeaders()["White"] ?? null;
+  const blackPlayer = chessGame.getHeaders()["Black"] ?? null;
+  const result = chessGame.getHeaders()["Result"] ?? null;
+
   return (
     <div className="gameviewer-page">
       <h2>{gameTitle}</h2>
       <div className="gameviewer-grid">
         <div className="board-column">
-          {boardOrientationState === "white" ? 
-            (blackPlayer ? <div className="player black">{blackPlayer}</div> : null):
-            (whitePlayer ? <div className="player white">{whitePlayer}</div> : null)}
+          {boardOrientationState === "white" ? (
+            blackPlayer ? (
+              <div className="player black">{blackPlayer}</div>
+            ) : null
+          ) : whitePlayer ? (
+            <div className="player white">{whitePlayer}</div>
+          ) : null}
 
-          <Chessboard options={chessBoardOpts} />
+          <Chessboard options={chessBoardOptions} />
 
-          {boardOrientationState === "white" ?
-            (whitePlayer ? <div className="player white">{whitePlayer}</div> : null):
-            (blackPlayer ? <div className="player black">{blackPlayer}</div> : null)}
+          {boardOrientationState === "white" ? (
+            whitePlayer ? (
+              <div className="player white">{whitePlayer}</div>
+            ) : null
+          ) : blackPlayer ? (
+            <div className="player black">{blackPlayer}</div>
+          ) : null}
         </div>
         <div className="notation-column">
           <div className="notation-header">Moves</div>
@@ -171,30 +208,30 @@ export default function GameViewer({
                 {moveRows.map((r, idx) => {
                   const whitePly = idx * 2 + 1; // ply numbers starting at 1
                   const blackPly = idx * 2 + 2;
-                  const plyIndex = chessGameInstance.getCurrentPly(); // current ply index
+                  const plyIndex = chessGame.getCurrentPly(); // current ply index
                   return (
                     <tr key={idx + 1} className={"notation-row"}>
                       <td className="notation-movenumber">{idx + 1}.</td>
                       <td
                         className={
-                          "notation-move " + (plyIndex === whitePly ? "current" : "")
+                          "notation-move " +
+                          (plyIndex === whitePly ? "current" : "")
                         }
                         onClick={(e) => {
                           e.preventDefault();
-                          chessGameInstance.goToMove(whitePly);
-                          setChessPosition(chessGameInstance.fen());
+                          chessGame.goToMove(whitePly);
                         }}
                       >
                         {r.white ?? ""}
                       </td>
                       <td
                         className={
-                          "notation-move " + (plyIndex === blackPly ? "current" : "")
+                          "notation-move " +
+                          (plyIndex === blackPly ? "current" : "")
                         }
                         onClick={(e) => {
                           e.preventDefault();
-                          chessGameInstance.goToMove(blackPly);
-                          setChessPosition(chessGameInstance.fen());
+                          chessGame.goToMove(blackPly);
                         }}
                       >
                         {r.black ?? ""}
@@ -203,7 +240,7 @@ export default function GameViewer({
                   );
                 })}
               </tbody>
-              {result ? (
+              {result && result != "*" ? (
                 <tfoot>
                   <tr>
                     <td

@@ -1,20 +1,14 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useParams } from "react-router-dom";
 
-import {
-  Chessboard,
-  ChessboardOptions,
-  defaultBoardStyle,
-  fenStringToPositionObject,
-} from "react-chessboard";
-import MyChess from "./MyChess";
+import ReactiveChess from "./ReactiveChess";
 import "./css/GameViewer.css";
 import GameViewer from "./GameViewer";
 
 export default function DatabaseGameViewer() {
   const { gameId } = useParams();
 
-  const chessGameRef = useRef(new MyChess());
+  const chessGameRef = useRef(new ReactiveChess());
   const chessGame = chessGameRef.current;
 
   const [gameLoading, setGameLoading] = useState(false);

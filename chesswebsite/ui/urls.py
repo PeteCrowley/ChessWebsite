@@ -4,4 +4,5 @@ from .views import index
 urlpatterns = [
     path('', index),
     path('game/<uuid:gameId>/', index),
+    path('play/engine/', index),
 ]
