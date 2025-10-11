@@ -116,6 +116,26 @@ body {
 	cursor: pointer;
 }
 
+.notation-footer button + button {
+	margin-left: 8px;
+}
+
+.draw-button {
+    background: #27ae60;
+    color: white;
+    border: none;
+    padding: 6px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.draw-button.active {
+	background: transparent;
+	color: #27ae60;
+	border: 2px solid #27ae60;
+	font-weight: 700;
+}
+
 .notation-table tfoot td {
 	padding-bottom: 18px;
 }

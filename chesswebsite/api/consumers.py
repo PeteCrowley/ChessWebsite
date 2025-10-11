@@ -40,6 +40,8 @@ class RoomInfo:
         self.board = game.board()
         for move in game.mainline_moves():
             self.board.push(move)
+        # track which user (username string) has an outstanding draw offer, or None
+        self.draw_offered_by = None
 
 _rooms: dict[str, RoomInfo] = {}
 
@@ -93,7 +95,7 @@ class PlayQueueConsumer(WebsocketConsumer):
             
             opponent_channel, opponent_user = _queue.popleft()
             # match with the oldest queued player
-            print("Matching players:", user, "vs", _queue[0][1])
+            print("Matching players:", user, "vs", opponent_user)
             game_id = str(uuid.uuid4())
             Game.objects.create(id=game_id, pgn=DEFAULT_PGN_TEMPLATE.format(
                 date=date.today().strftime("%Y.%m.%d"),
@@ -130,6 +132,7 @@ class PlayQueueConsumer(WebsocketConsumer):
             self.send(text_data=text)
 
 class PlayGameConsumer(WebsocketConsumer):
+
     def connect(self):
         self.game_id = self.scope['url_route']['kwargs']['game_id']
         self.room_group_name = f'game_{self.game_id}'
@@ -220,7 +223,9 @@ class PlayGameConsumer(WebsocketConsumer):
                     return
                 _rooms[self.game_id].game = _rooms[self.game_id].game.add_variation(move)
                 board.push(move)
-                
+                # clear any outstanding draw offer whenever a new move is played
+                _rooms[self.game_id].draw_offered_by = None
+
             except Exception:
                 self.send(text_data=json.dumps({"error": "move validation failed"}))
                 return
@@ -250,8 +255,96 @@ class PlayGameConsumer(WebsocketConsumer):
                         }),
                     }
                 )
-            return
+        elif action == "resign":
+            scope_user = self.scope.get('user')
+            white_name = _rooms[self.game_id].game.game().headers.get("White")
+            black_name = _rooms[self.game_id].game.game().headers.get("Black")
 
+            if scope_user and scope_user.is_authenticated:
+                user = scope_user.username
+            else:
+                user = "anonymous"
+
+            if user == white_name:
+                result = "0-1"
+            elif user == black_name:
+                result = "1-0"
+            else:
+                self.send(text_data=json.dumps({"error": "not your game"}))
+                return
+            _rooms[self.game_id].game.game().headers["Result"] = result
+            # Persist the game state immediately
+            gamePgn = _rooms[self.game_id].game.game().__str__()
+            game = Game.objects.get(id=self.game_id)
+            game.pgn = gamePgn
+            game.save()
+            async_to_sync(self.channel_layer.group_send)(
+                self.room_group_name,
+                {
+                    'type': 'game.message',
+                    'text': json.dumps({
+                        "event": "game_over",
+                        "pgn": gamePgn,
+                    }),
+                }
+            )
+        elif action == "offer_draw":
+            # handle draw offer/accept
+            scope_user = self.scope.get('user')
+            white_name = _rooms[self.game_id].game.game().headers.get("White")
+            black_name = _rooms[self.game_id].game.game().headers.get("Black")
+
+            if scope_user and scope_user.is_authenticated:
+                user = scope_user.username
+            else:
+                user = "anonymous"
+
+            # ensure the user is one of the players (unless anonymous game)
+            if not (user == white_name or user == black_name):
+                self.send(text_data=json.dumps({"error": "not your game"}))
+                return
+
+            room = _rooms[self.game_id]
+            # if no existing offer, record it and notify room
+            if not room.draw_offered_by:
+                room.draw_offered_by = user
+                async_to_sync(self.channel_layer.group_send)(
+                    self.room_group_name,
+                    {
+                        'type': 'game.message',
+                        'text': json.dumps({"event": "draw_offered"}),
+                        'sender': self.channel_name,
+                    }
+                )
+                return
+
+            # if opponent had already offered, and it's from the other player, accept the draw
+            if room.draw_offered_by and room.draw_offered_by != user:
+                # set draw result in PGN headers
+                _rooms[self.game_id].game.game().headers["Result"] = "1/2-1/2"
+                # Persist the game state immediately
+                gamePgn = _rooms[self.game_id].game.game().__str__()
+                game = Game.objects.get(id=self.game_id)
+                game.pgn = gamePgn
+                game.save()
+                # notify room that game is over by draw
+                async_to_sync(self.channel_layer.group_send)(
+                    self.room_group_name,
+                    {
+                        'type': 'game.message',
+                        'text': json.dumps({
+                            "event": "game_over",
+                            "pgn": gamePgn,
+                            "result": "1/2-1/2",
+                        }),
+                    }
+                )
+                # clear outstanding offer
+                room.draw_offered_by = None
+                return
+            
+
+            
     def game_message(self, event):
         # Don't echo messages back to the origin sender
         sender = event.get('sender')

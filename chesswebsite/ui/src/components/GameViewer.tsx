@@ -23,6 +23,7 @@ type GameViewerProps = {
 	isGameActive?: boolean;
 	boardOrientation?: 'white' | 'black';
 	currentPly?: number;
+  drawOfferActive?: boolean;
 };
 
 export default function GameViewer({
@@ -32,7 +33,8 @@ export default function GameViewer({
 	pieceDraggingEnabled = false,
 	isGameActive = false,
 	boardOrientation = 'white',
-	currentPly: initialPly = undefined,
+    currentPly: initialPly = undefined,
+    drawOfferActive = false,
 }: GameViewerProps) {
 	// the chessGame that we will build the viewer around
 	const chessGameRef = useRef<ReactiveChess>(chessGameInstance);
@@ -209,6 +211,10 @@ export default function GameViewer({
 
 	const handleResignRequest = useCallback(() => {
 		onMoveRequest({ from: 'resign', to: 'resign' });
+	}, [onMoveRequest]);
+
+	const handleDrawOfferRequest = useCallback(() => {
+	    return onMoveRequest({ from: 'offer_draw', to: 'offer_draw' });
 	}, [onMoveRequest]);
 
 	// Background square colors for last move
@@ -399,9 +405,17 @@ export default function GameViewer({
 									<h4>Result: {result}</h4>
 								</div>
 							) : isGameActive ? (
-								<button className="resign-button" onClick={handleResignRequest}>
-									Resign
-								</button>
+								<>
+									<button className="resign-button" onClick={handleResignRequest}>
+										Resign
+									</button>
+									<button
+										className={"draw-button" + (drawOfferActive ? ' active' : '')}
+										onClick={handleDrawOfferRequest}
+									>
+										{drawOfferActive ? 'Take Draw' : 'Offer Draw'}
+									</button>
+								</>
 							) : (
 								<></>
 							)}
