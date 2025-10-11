@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, use } from 'react';
 import ReactiveChess from './ReactiveChess';
 import { Color } from 'chess.js';
 import GameViewer from './GameViewer';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import useWebSocket from 'react-use-websocket';
 import { useAuth } from './AuthContext';
 
@@ -24,6 +24,8 @@ export default function PlayVsPlayer() {
 	const [isGameOver, setIsGameOver] = useState(chessGame.isGameOver());
 	const [mostRecentPly, setMostRecentPly] = useState<number>(chessGame.history().length);
 	const [drawOfferActive, setDrawOfferActive] = useState<boolean>(false);
+
+	const navigate = useNavigate();
 
 	useEffect(() => {
 		if (!lastJsonMessage || typeof lastJsonMessage !== 'object') return;
@@ -54,6 +56,7 @@ export default function PlayVsPlayer() {
 			setMostRecentPly(chessGame.history().length);
 			setIsGameOver(true);
 			setIsPlayersTurn(false);
+			navigate(`/game/${gameId}`);
 		}
 		if (ev === 'draw_offered') {
 			setDrawOfferActive(true);

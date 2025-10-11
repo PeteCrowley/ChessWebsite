@@ -56,6 +56,23 @@
 	white-space: nowrap;
 }
 
+.games-list-controls {
+	display: flex;
+	gap: 8px;
+	align-items: center;
+	margin-bottom: 8px;
+}
+.games-list-controls input {
+	padding: 6px;
+	border-radius: 6px;
+	border: 1px solid #ddd;
+}
+.games-list-controls button {
+	padding: 6px;
+	border-radius: 6px;
+	border: 1px solid #ddd;
+	background: #f6f6f6;
+}
 .game-actions {
 	text-align: right;
 }

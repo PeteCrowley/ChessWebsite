@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import './css/GamesList.css';
+import { useAuth } from './AuthContext';
 
 interface Game {
 	id: string;
@@ -13,12 +14,17 @@ interface GameInfo {
 	black: string;
 	result: string;
 	date: string;
+	isPlayerInvolved: boolean;
+	isGameActive: boolean;
 }
 
 export default function GamesList() {
 	const [games, setGames] = useState<GameInfo[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
+	const auth = useAuth();
+	const username = auth.isAuthenticated ? (auth.user?.username ?? '') : '';
+	const [playerFilter, setPlayerFilter] = useState('');
 
 	useEffect(() => {
 		const fetchGames = async () => {
@@ -43,6 +49,8 @@ export default function GamesList() {
 								: headers.Result
 							: '*',
 						date: headers.Date || '????.??.??',
+						isPlayerInvolved: headers.White === username || headers.Black === username,
+						isGameActive: headers.Result === '*',
 					};
 				});
 				gameInfos.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
@@ -76,27 +84,49 @@ export default function GamesList() {
 
 	return (
 		<div className="games-list">
+			<div className="games-list-controls">
+				<label>
+					Filter by player:&nbsp;
+					<input
+						value={playerFilter}
+						onChange={(e) => setPlayerFilter(e.target.value)}
+						placeholder="player name"
+					/>
+				</label>
+				{playerFilter && <button onClick={() => setPlayerFilter('')}>Clear</button>}
+			</div>
 			<h3>Recent Games</h3>
 			{games.length === 0 ? (
 				<p>No games found.</p>
 			) : (
 				<div className="games-table">
-					{games.map((game) => (
-						<div key={game.id} className="game-row">
-							<div className="game-players">
-								<span className="white-player">{game.white}</span>
-								<span className="vs">vs</span>
-								<span className="black-player">{game.black}</span>
+					{games
+						.filter((g) => {
+							if (!playerFilter) return true;
+							return g.white.includes(playerFilter) || g.black.includes(playerFilter);
+						})
+						.map((game) => (
+							<div key={game.id} className="game-row">
+								<div className="game-players">
+									<span className="white-player">{game.white}</span>
+									<span className="vs">vs</span>
+									<span className="black-player">{game.black}</span>
+								</div>
+								<div className="game-date">{game.date}</div>
+								<div className="game-result">{game.result}</div>
+								<div className="game-actions">
+									{game.isPlayerInvolved && game.isGameActive ? (
+										<Link to={`/play/${game.id}`} className="view-game-link">
+											Play{' '}
+										</Link>
+									) : (
+										<Link to={`/game/${game.id}`} className="view-game-link">
+											View{' '}
+										</Link>
+									)}
+								</div>
 							</div>
-							<div className="game-date">{game.date}</div>
-							<div className="game-result">{game.result}</div>
-							<div className="game-actions">
-								<Link to={`/game/${game.id}`} className="view-game-link">
-									View
-								</Link>
-							</div>
-						</div>
-					))}
+						))}
 				</div>
 			)}
 		</div>

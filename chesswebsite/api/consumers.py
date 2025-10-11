@@ -40,7 +40,6 @@ class RoomInfo:
         self.board = game.board()
         for move in game.mainline_moves():
             self.board.push(move)
-        # track which user (username string) has an outstanding draw offer, or None
         self.draw_offered_by = None
 
 _rooms: dict[str, RoomInfo] = {}
@@ -132,7 +131,6 @@ class PlayQueueConsumer(WebsocketConsumer):
             self.send(text_data=text)
 
 class PlayGameConsumer(WebsocketConsumer):
-
     def connect(self):
         self.game_id = self.scope['url_route']['kwargs']['game_id']
         self.room_group_name = f'game_{self.game_id}'
@@ -341,8 +339,6 @@ class PlayGameConsumer(WebsocketConsumer):
                 )
                 # clear outstanding offer
                 room.draw_offered_by = None
-                return
-            
 
             
     def game_message(self, event):
