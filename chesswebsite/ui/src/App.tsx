@@ -11,18 +11,18 @@ import Register from './components/Register';
 
 function App() {
 	return (
-			<BrowserRouter>
-				<Header />
-				<Routes>
-					<Route path="/" element={<Home />} />
+		<BrowserRouter>
+			<Header />
+			<Routes>
+				<Route path="/" element={<Home />} />
 				<Route path="/game/:gameId" element={<DatabaseGameViewer />} />
 				<Route path="/login" element={<Login />} />
 				<Route path="/register" element={<Register />} />
-					<Route path="/play/engine" element={<PlayVsEngine />} />
-					<Route path="/play/:gameId" element={<PlayVsPlayer />} />
-					<Route path="/analysis" element={<AnalysisBoard />} />
-				</Routes>
-			</BrowserRouter>
+				<Route path="/play/engine" element={<PlayVsEngine />} />
+				<Route path="/play/:gameId" element={<PlayVsPlayer />} />
+				<Route path="/analysis" element={<AnalysisBoard />} />
+			</Routes>
+		</BrowserRouter>
 	);
 }
 

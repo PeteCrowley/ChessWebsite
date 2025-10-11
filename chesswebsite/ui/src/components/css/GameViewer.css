@@ -121,12 +121,12 @@ body {
 }
 
 .draw-button {
-    background: #27ae60;
-    color: white;
-    border: none;
-    padding: 6px 10px;
-    border-radius: 6px;
-    cursor: pointer;
+	background: #27ae60;
+	color: white;
+	border: none;
+	padding: 6px 10px;
+	border-radius: 6px;
+	cursor: pointer;
 }
 
 .draw-button.active {

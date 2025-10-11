@@ -8,8 +8,8 @@ import { useAuth } from './AuthContext';
 
 export default function PlayVsPlayer() {
 	const auth = useAuth();
-    const username = auth.user?.username ?? "anonymous";
-    
+	const username = auth.user?.username ?? 'anonymous';
+
 	const { gameId } = useParams();
 	const WS_URL = `ws://${window.location.host}/ws/play/${gameId}/`;
 	const { sendJsonMessage, lastJsonMessage, readyState } = useWebSocket(WS_URL, {
@@ -22,8 +22,8 @@ export default function PlayVsPlayer() {
 	const [playerColor, setPlayerColor] = useState<Color | null>(null);
 	const [isPlayersTurn, setIsPlayersTurn] = useState(false);
 	const [isGameOver, setIsGameOver] = useState(chessGame.isGameOver());
-    const [mostRecentPly, setMostRecentPly] = useState<number>(chessGame.history().length);
-    const [drawOfferActive, setDrawOfferActive] = useState<boolean>(false);
+	const [mostRecentPly, setMostRecentPly] = useState<number>(chessGame.history().length);
+	const [drawOfferActive, setDrawOfferActive] = useState<boolean>(false);
 
 	useEffect(() => {
 		if (!lastJsonMessage || typeof lastJsonMessage !== 'object') return;
@@ -49,21 +49,21 @@ export default function PlayVsPlayer() {
 				setIsPlayersTurn(chessGame.turn() === 'b');
 			}
 		}
-        if (ev === 'game_over') {
-            chessGame.loadPgn((lastJsonMessage as any).pgn);
-            setMostRecentPly(chessGame.history().length);
-            setIsGameOver(true);
-            setIsPlayersTurn(false);
-        }
-        if (ev === "draw_offered") {
-            setDrawOfferActive(true);
-        }
+		if (ev === 'game_over') {
+			chessGame.loadPgn((lastJsonMessage as any).pgn);
+			setMostRecentPly(chessGame.history().length);
+			setIsGameOver(true);
+			setIsPlayersTurn(false);
+		}
+		if (ev === 'draw_offered') {
+			setDrawOfferActive(true);
+		}
 	}, [lastJsonMessage, username, chessGame]);
 
 	// function to make a move on the chess game, and update state accordingly
 	const makeMove = (move: { from: string; to: string; promotion?: string } | string) => {
 		chessGame.move(move);
-        if (drawOfferActive) setDrawOfferActive(false);
+		if (drawOfferActive) setDrawOfferActive(false);
 		setMostRecentPly(chessGame.history().length);
 		if (chessGame.isGameOver()) {
 			chessGame.setHeader(
@@ -80,17 +80,17 @@ export default function PlayVsPlayer() {
 	const handleMoveRequest = useCallback(
 		(move: { from: string; to: string; promotion?: string }): boolean => {
 			if (move.from === 'resign' && move.to === 'resign') {
-				sendJsonMessage({ action: 'resign'});
+				sendJsonMessage({ action: 'resign' });
 				return true;
 			}
-            if (move.from === 'offer_draw' && move.to === 'offer_draw') {
-                sendJsonMessage({ action: 'offer_draw'});
-                return true;
-            }
+			if (move.from === 'offer_draw' && move.to === 'offer_draw') {
+				sendJsonMessage({ action: 'offer_draw' });
+				return true;
+			}
 			try {
 				makeMove(move);
 				const uciMove = move.from + move.to + (move.promotion ?? '');
-				sendJsonMessage({ action: 'move', move: uciMove});
+				sendJsonMessage({ action: 'move', move: uciMove });
 				return true;
 			} catch (e: any) {
 				if (e instanceof Error && e.message === 'Invalid move') {
@@ -111,8 +111,8 @@ export default function PlayVsPlayer() {
 				pieceDraggingEnabled={isPlayersTurn && !isGameOver}
 				boardOrientation={playerColor === 'w' ? 'white' : 'black'}
 				currentPly={mostRecentPly}
-                isGameActive={!isGameOver}
-                drawOfferActive={drawOfferActive}
+				isGameActive={!isGameOver}
+				drawOfferActive={drawOfferActive}
 			/>
 		</div>
 	);

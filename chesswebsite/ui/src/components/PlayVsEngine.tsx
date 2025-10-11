@@ -13,14 +13,16 @@ export default function PlayVsEngine() {
 	const [isGameOver, setIsGameOver] = useState(chessGame.isGameOver());
 	const [mostRecentPly, setMostRecentPly] = useState<number>(chessGame.history().length);
 
-    const csrftoken = (document.cookie.split('; ').find(row => row.startsWith('csrftoken=')) || '').split('=')[1];
+	const csrftoken = (
+		document.cookie.split('; ').find((row) => row.startsWith('csrftoken=')) || ''
+	).split('=')[1];
 
 	// function to make a move on the chess game, and update state accordingly
 	const makeMove = (move: { from: string; to: string; promotion?: string } | string) => {
 		chessGame.move(move);
 		// update most recent ply after applying the move
 		setMostRecentPly(chessGame.history().length);
-        setIsPlayersTurn(chessGame.turn() === playerColor);
+		setIsPlayersTurn(chessGame.turn() === playerColor);
 		if (chessGame.isGameOver()) {
 			chessGame.setHeader(
 				'Result',
@@ -64,10 +66,11 @@ export default function PlayVsEngine() {
 				const response = await fetch(`/api/engine/move/`, {
 					method: 'POST',
 					signal: ac.signal,
-					headers: { 'Content-Type': 'application/json', 
-                        'Accept': 'application/json', 
-                        'X-CSRFToken': csrftoken,
-                    },
+					headers: {
+						'Content-Type': 'application/json',
+						Accept: 'application/json',
+						'X-CSRFToken': csrftoken,
+					},
 					body: JSON.stringify({ fen: chessGame.fen() }),
 				});
 				if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -123,7 +126,7 @@ export default function PlayVsEngine() {
 				gameTitle={`Play vs Engine`}
 				onMoveRequest={handleMoveRequest}
 				pieceDraggingEnabled={isPlayersTurn && !isGameOver}
-                isGameActive={!isGameOver}
+				isGameActive={!isGameOver}
 				boardOrientation={playerColor === 'w' ? 'white' : 'black'}
 				currentPly={mostRecentPly}
 			/>

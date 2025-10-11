@@ -12,7 +12,7 @@ interface GameInfo {
 	white: string;
 	black: string;
 	result: string;
-    date: string;
+	date: string;
 }
 
 export default function GamesList() {
@@ -29,7 +29,7 @@ export default function GamesList() {
 				});
 				if (!response.ok) throw new Error(`HTTP ${response.status}`);
 				const data: Game[] = await response.json();
-				
+
 				// Parse PGN headers to extract white, black, result
 				const gameInfos: GameInfo[] = data.map((game) => {
 					const headers = parsePgnHeaders(game.pgn);
@@ -37,12 +37,16 @@ export default function GamesList() {
 						id: game.id,
 						white: headers.White || 'Unknown',
 						black: headers.Black || 'Unknown',
-						result: headers.Result ? (headers.Result === "*" ? "In Progress" : headers.Result) : '*',
-                        date: headers.Date || '????.??.??',
+						result: headers.Result
+							? headers.Result === '*'
+								? 'In Progress'
+								: headers.Result
+							: '*',
+						date: headers.Date || '????.??.??',
 					};
 				});
-                gameInfos.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
-				
+				gameInfos.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+
 				setGames(gameInfos);
 				setLoading(false);
 			} catch (e: any) {
@@ -84,7 +88,7 @@ export default function GamesList() {
 								<span className="vs">vs</span>
 								<span className="black-player">{game.black}</span>
 							</div>
-                            <div className="game-date">{game.date}</div>
+							<div className="game-date">{game.date}</div>
 							<div className="game-result">{game.result}</div>
 							<div className="game-actions">
 								<Link to={`/game/${game.id}`} className="view-game-link">

@@ -5,7 +5,7 @@ import './css/PlayQueue.css';
 import { useAuth } from './AuthContext';
 
 export default function PlayQueue() {
-    const auth = useAuth();
+	const auth = useAuth();
 
 	const WS_URL = `ws://${window.location.host}/ws/play/queue/`;
 	const { sendJsonMessage, lastJsonMessage, readyState } = useWebSocket(WS_URL, {
@@ -13,7 +13,7 @@ export default function PlayQueue() {
 	});
 	const navigate = useNavigate();
 
-    const username = auth.user?.username ?? "anonymous";
+	const username = auth.user?.username ?? 'anonymous';
 
 	const [queued, setQueued] = useState<boolean>(false);
 	const [matchedGame, setMatchedGame] = useState<string | null>(null);
@@ -33,12 +33,12 @@ export default function PlayQueue() {
 
 	const handleJoin = () => {
 		if (readyState !== ReadyState.OPEN) return;
-		sendJsonMessage({ action: 'join'});
+		sendJsonMessage({ action: 'join' });
 	};
 
 	const handleLeave = () => {
 		if (readyState !== ReadyState.OPEN) return;
-		sendJsonMessage({ action: 'leave'});
+		sendJsonMessage({ action: 'leave' });
 		setQueued(false);
 	};
 
