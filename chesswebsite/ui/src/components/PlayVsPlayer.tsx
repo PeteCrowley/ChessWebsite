@@ -1,0 +1,100 @@
+import React, { useState, useEffect, useRef, useCallback, use } from 'react';
+import ReactiveChess from './ReactiveChess';
+import { Color } from 'chess.js';
+import GameViewer from './GameViewer';
+import { useLocation, useParams } from 'react-router-dom';
+import useWebSocket from 'react-use-websocket';
+
+export default function PlayVsPlayer() {
+	const location = useLocation();
+	const params = new URLSearchParams(location.search);
+	const user = params.get('user') ?? ''; // null-safe
+	const { gameId } = useParams();
+	const WS_URL = `ws://${window.location.host}/ws/play/${gameId}/`;
+	const { sendJsonMessage, lastJsonMessage, readyState } = useWebSocket(WS_URL, {
+		shouldReconnect: () => true,
+	});
+
+	const chessGameRef = useRef(new ReactiveChess());
+	const chessGame = chessGameRef.current;
+
+	const [playerColor, setPlayerColor] = useState<Color | null>(null);
+	const [isPlayersTurn, setIsPlayersTurn] = useState(true);
+	const [isGameOver, setIsGameOver] = useState(chessGame.isGameOver());
+
+	useEffect(() => {
+		if (!lastJsonMessage || typeof lastJsonMessage !== 'object') return;
+		const ev = (lastJsonMessage as any).event;
+		if (ev === 'move') {
+			const moveUci = (lastJsonMessage as any).move;
+			try {
+				makeMove(moveUci);
+			} catch (e) {
+				console.error('Failed to make move from opponent:', e);
+			}
+		}
+		if (ev === 'send_pgn') {
+			const pgn = (lastJsonMessage as any).pgn;
+			chessGame.loadPgn(pgn);
+			if (user === chessGame.getHeaders()['White']) {
+				setPlayerColor('w');
+				setIsPlayersTurn(chessGame.turn() === 'w');
+			} else if (user === chessGame.getHeaders()['Black']) {
+				setPlayerColor('b');
+				setIsPlayersTurn(chessGame.turn() === 'b');
+			}
+		}
+	}, [lastJsonMessage, user, chessGame]);
+
+	// function to make a move on the chess game, and update state accordingly
+	const makeMove = (move: { from: string; to: string; promotion?: string } | string) => {
+		chessGame.move(move);
+		if (chessGame.isGameOver()) {
+			chessGame.setHeader(
+				'Result',
+				chessGame.isDraw() ? '1/2-1/2' : chessGame.turn() === 'w' ? '0-1' : '1-0'
+			);
+			setIsGameOver(true);
+			setIsPlayersTurn(false);
+		}
+		setIsPlayersTurn(chessGame.turn() === playerColor);
+	};
+
+	// handle when the player tries to make a move
+	const handleMoveRequest = useCallback(
+		(move: { from: string; to: string; promotion?: string }): boolean => {
+			if (move.from === 'resign' && move.to === 'resign') {
+				const res = playerColor === 'w' ? '0-1' : '1-0';
+				chessGame.setHeader('Result', res);
+				setIsGameOver(true);
+				setIsPlayersTurn(false);
+				return true;
+			}
+			try {
+				makeMove(move);
+				const uciMove = move.from + move.to + (move.promotion ?? '');
+				sendJsonMessage({ action: 'move', move: uciMove });
+				return true;
+			} catch (e: any) {
+				if (e instanceof Error && e.message === 'Invalid move') {
+					return false;
+				}
+			}
+			return false;
+		},
+		[chessGame, playerColor]
+	);
+
+	return (
+		<div>
+			<GameViewer
+				chessGame={chessGame}
+				gameTitle={`Player vs Player`}
+				onMoveRequest={handleMoveRequest}
+				pieceDraggingEnabled={isPlayersTurn && !isGameOver}
+				boardOrientation={playerColor === 'w' ? 'white' : 'black'}
+				currentPly={chessGame.history().length}
+			/>
+		</div>
+	);
+}
