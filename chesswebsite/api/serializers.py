@@ -10,3 +10,5 @@ class CreateGameSerializer(serializers.ModelSerializer):
     class Meta:
         model = Game
         fields = ('pgn',)
+
+    

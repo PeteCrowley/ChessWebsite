@@ -44,7 +44,6 @@ class RoomInfo:
 _rooms: dict[str, RoomInfo] = {}
 
 class PlayQueueConsumer(WebsocketConsumer):
-
     def connect(self):
         self.accept()
 
@@ -52,6 +51,7 @@ class PlayQueueConsumer(WebsocketConsumer):
         # remove from queue if present
         for item in list(_queue):
             if item[0] == self.channel_name:
+                print("Removing from queue: ", item[1])
                 _queue.remove(item)
                 break
 
@@ -63,11 +63,12 @@ class PlayQueueConsumer(WebsocketConsumer):
             return
 
         action = data.get("action")
-        user = data.get("user")
-        if not user:
-            self.send(text_data=json.dumps({"error": "missing user"}))
-            return
-        self.user = user
+        # Prefer authenticated user from scope (AuthMiddlewareStack).
+        scope_user = self.scope.get('user')
+        if scope_user and scope_user.is_authenticated:
+            user = scope_user.username
+        else:
+            user = "anonymous"
 
         if action == "join":
             # prevent duplicate entries
@@ -75,18 +76,28 @@ class PlayQueueConsumer(WebsocketConsumer):
                 self.send(text_data=json.dumps({"event": "queued"}))
                 return
 
-            # if no one is waiting, enqueue
+            # if no one is waiting
             if len(_queue) == 0:
+                _queue.append((self.channel_name, user))
+                print("Added to queue: ", user)
+                self.send(text_data=json.dumps({"event": "queued"}))
+                return
+            
+            # if the user is anonymous and the first waiting player is anonymous, enqueue
+            if user == "anonymous" and _queue[0][1] == "anonymous":
+                print("Added to queue: ", user)
                 _queue.append((self.channel_name, user))
                 self.send(text_data=json.dumps({"event": "queued"}))
                 return
 
-            # otherwise match with the oldest queued player
+            
             opponent_channel, opponent_user = _queue.popleft()
+            # match with the oldest queued player
+            print("Matching players:", user, "vs", _queue[0][1])
             game_id = str(uuid.uuid4())
             Game.objects.create(id=game_id, pgn=DEFAULT_PGN_TEMPLATE.format(
                 date=date.today().strftime("%Y.%m.%d"),
-                whitePlayer=self.user,
+                whitePlayer=user,
                 blackPlayer=opponent_user,
             ))
             
@@ -154,7 +165,6 @@ class PlayGameConsumer(WebsocketConsumer):
         pgn = _rooms[self.game_id].game.game().__str__()
         self.send(text_data=json.dumps({"event": "send_pgn", "pgn": pgn}))
 
-
     def disconnect(self, close_code):
         if self.game_id not in _rooms:
             return
@@ -183,15 +193,19 @@ class PlayGameConsumer(WebsocketConsumer):
         
         action = data.get("action")
         if action == "move":
-            # Get the user and check to make sure it's their turn
-            # (This is not secure, just a basic check to avoid obvious issues)
-            user = data.get("user")
-            if not user:
-                self.send(text_data=json.dumps({"error": "missing user"}))
-                return
+            scope_user = self.scope.get('user')
+            white_name = _rooms[self.game_id].game.game().headers.get("White")
+            black_name = _rooms[self.game_id].game.game().headers.get("Black")
+
+            if scope_user and scope_user.is_authenticated:
+                user = scope_user.username
+            else:
+                user = "anonymous"
+
             board = _rooms[self.game_id].board
-            if (board.turn == chess.WHITE and user != _rooms[self.game_id].game.game().headers["White"]) or \
-               (board.turn == chess.BLACK and user != _rooms[self.game_id].game.game().headers["Black"]):
+            # verify it's the player's turn
+            if (board.turn == chess.WHITE and user != white_name) or \
+               (board.turn == chess.BLACK and user != black_name):
                 self.send(text_data=json.dumps({"error": "not your turn"}))
                 return
             move_uci = data.get("move")
@@ -206,6 +220,7 @@ class PlayGameConsumer(WebsocketConsumer):
                     return
                 _rooms[self.game_id].game = _rooms[self.game_id].game.add_variation(move)
                 board.push(move)
+                
             except Exception:
                 self.send(text_data=json.dumps({"error": "move validation failed"}))
                 return
@@ -217,20 +232,30 @@ class PlayGameConsumer(WebsocketConsumer):
                     'sender': self.channel_name,
                 }
             )
+            if board.is_game_over():
+                print("Game over:", board.result())
+                _rooms[self.game_id].game.game().headers["Result"] = board.result()
+                # Persist the game state immediately
+                gamePgn = _rooms[self.game_id].game.game().__str__()
+                game = Game.objects.get(id=self.game_id)
+                game.pgn = gamePgn
+                game.save()
+                async_to_sync(self.channel_layer.group_send)(
+                    self.room_group_name,
+                    {
+                        'type': 'game.message',
+                        'text': json.dumps({
+                            "event": "game_over",
+                            "pgn": gamePgn,
+                        }),
+                    }
+                )
             return
-        async_to_sync(self.channel_layer.group_send)(
-            self.room_group_name,
-            {
-                'type': 'game.message',
-                'text': text_data,
-                'sender': self.channel_name,
-            }
-        )
 
     def game_message(self, event):
         # Don't echo messages back to the origin sender
         sender = event.get('sender')
-        if sender == self.channel_name:
+        if sender and sender == self.channel_name:
             return
         text = event.get('text')
         if text is not None:

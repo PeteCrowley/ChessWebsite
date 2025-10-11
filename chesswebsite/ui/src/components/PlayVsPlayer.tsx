@@ -2,13 +2,14 @@ import React, { useState, useEffect, useRef, useCallback, use } from 'react';
 import ReactiveChess from './ReactiveChess';
 import { Color } from 'chess.js';
 import GameViewer from './GameViewer';
-import { useLocation, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import useWebSocket from 'react-use-websocket';
+import { useAuth } from './AuthContext';
 
 export default function PlayVsPlayer() {
-	const location = useLocation();
-	const params = new URLSearchParams(location.search);
-	const user = params.get('user') ?? ''; // null-safe
+	const auth = useAuth();
+    const username = auth.user?.username ?? "anonymous";
+    
 	const { gameId } = useParams();
 	const WS_URL = `ws://${window.location.host}/ws/play/${gameId}/`;
 	const { sendJsonMessage, lastJsonMessage, readyState } = useWebSocket(WS_URL, {
@@ -39,15 +40,21 @@ export default function PlayVsPlayer() {
 			const pgn = (lastJsonMessage as any).pgn;
 			chessGame.loadPgn(pgn);
 			setMostRecentPly(chessGame.history().length);
-			if (user === chessGame.getHeaders()['White']) {
+			if (username === chessGame.getHeaders()['White']) {
 				setPlayerColor('w');
 				setIsPlayersTurn(chessGame.turn() === 'w');
-			} else if (user === chessGame.getHeaders()['Black']) {
+			} else if (username === chessGame.getHeaders()['Black']) {
 				setPlayerColor('b');
 				setIsPlayersTurn(chessGame.turn() === 'b');
 			}
 		}
-	}, [lastJsonMessage, user, chessGame]);
+        if (ev === 'game_over') {
+            chessGame.loadPgn((lastJsonMessage as any).pgn);
+            setMostRecentPly(chessGame.history().length);
+            setIsGameOver(true);
+            setIsPlayersTurn(false);
+        }
+	}, [lastJsonMessage, username, chessGame]);
 
 	// function to make a move on the chess game, and update state accordingly
 	const makeMove = (move: { from: string; to: string; promotion?: string } | string) => {
@@ -77,7 +84,7 @@ export default function PlayVsPlayer() {
 			try {
 				makeMove(move);
 				const uciMove = move.from + move.to + (move.promotion ?? '');
-				sendJsonMessage({ action: 'move', move: uciMove, user: user });
+				sendJsonMessage({ action: 'move', move: uciMove});
 				return true;
 			} catch (e: any) {
 				if (e instanceof Error && e.message === 'Invalid move') {
@@ -86,7 +93,7 @@ export default function PlayVsPlayer() {
 			}
 			return false;
 		},
-		[chessGame, playerColor, user]
+		[chessGame, playerColor, username]
 	);
 
 	return (

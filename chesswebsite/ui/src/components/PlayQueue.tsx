@@ -1,16 +1,20 @@
 import useWebSocket, { ReadyState } from 'react-use-websocket';
-import React, { use, useEffect, useState } from 'react';
+import React, { use, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './css/PlayQueue.css';
+import { useAuth } from './AuthContext';
 
 export default function PlayQueue() {
+    const auth = useAuth();
+
 	const WS_URL = `ws://${window.location.host}/ws/play/queue/`;
 	const { sendJsonMessage, lastJsonMessage, readyState } = useWebSocket(WS_URL, {
 		shouldReconnect: () => true,
 	});
 	const navigate = useNavigate();
 
-	const [username, setUsername] = useState<string>('player');
+    const username = auth.user?.username ?? "anonymous";
+
 	const [queued, setQueued] = useState<boolean>(false);
 	const [matchedGame, setMatchedGame] = useState<string | null>(null);
 
@@ -23,18 +27,18 @@ export default function PlayQueue() {
 		if (ev === 'matched') {
 			setQueued(false);
 			setMatchedGame((lastJsonMessage as any).game ?? null);
-			navigate(`/play/${(lastJsonMessage as any).game}?user=${username}`);
+			navigate(`/play/${(lastJsonMessage as any).game}`);
 		}
 	}, [lastJsonMessage]);
 
 	const handleJoin = () => {
 		if (readyState !== ReadyState.OPEN) return;
-		sendJsonMessage({ action: 'join', user: username });
+		sendJsonMessage({ action: 'join'});
 	};
 
 	const handleLeave = () => {
 		if (readyState !== ReadyState.OPEN) return;
-		sendJsonMessage({ action: 'leave', user: username });
+		sendJsonMessage({ action: 'leave'});
 		setQueued(false);
 	};
 
@@ -43,7 +47,6 @@ export default function PlayQueue() {
 			<h3>Play Queue</h3>
 
 			<div className="playqueue-controls">
-				<input value={username} onChange={(e) => setUsername(e.target.value)} />
 				<button onClick={handleJoin} disabled={queued || readyState !== ReadyState.OPEN}>
 					Join Queue
 				</button>
