@@ -126,22 +126,27 @@ class PlayGameConsumer(WebsocketConsumer):
         if not Game.objects.filter(id=self.game_id).exists():
             self.close(reason="invalid game id")
             return
-
-        # Join room group
-        async_to_sync(self.channel_layer.group_add)(
-            self.room_group_name,
-            self.channel_name
-        )
-
         if self.game_id not in _rooms:
             print("Creating new play room and loading game from DB:", self.game_id)
-            game = chess.pgn.read_game(io.StringIO(Game.objects.get(id=self.game_id).pgn))
+            gameFromDB = Game.objects.get(id=self.game_id)
+            game = chess.pgn.read_game(io.StringIO(gameFromDB.pgn))
+            # if the game is over, we don't want to accept the connection
+            res = game.headers.get("Result")
+            if res != "*":
+                self.close(reason="game is over")
+                return
             # Go to most recent position in game
             while game.variations:
                 game = game.variations[-1]
             _rooms[self.game_id] = RoomInfo(game)
 
         _rooms[self.game_id].clients += 1
+
+        # Join room group
+        async_to_sync(self.channel_layer.group_add)(
+            self.room_group_name,
+            self.channel_name
+        )
 
         self.accept()
 
@@ -151,6 +156,8 @@ class PlayGameConsumer(WebsocketConsumer):
 
 
     def disconnect(self, close_code):
+        if self.game_id not in _rooms:
+            return
         # Leave room group
         async_to_sync(self.channel_layer.group_discard)(
             self.room_group_name,
@@ -176,6 +183,17 @@ class PlayGameConsumer(WebsocketConsumer):
         
         action = data.get("action")
         if action == "move":
+            # Get the user and check to make sure it's their turn
+            # (This is not secure, just a basic check to avoid obvious issues)
+            user = data.get("user")
+            if not user:
+                self.send(text_data=json.dumps({"error": "missing user"}))
+                return
+            board = _rooms[self.game_id].board
+            if (board.turn == chess.WHITE and user != _rooms[self.game_id].game.game().headers["White"]) or \
+               (board.turn == chess.BLACK and user != _rooms[self.game_id].game.game().headers["Black"]):
+                self.send(text_data=json.dumps({"error": "not your turn"}))
+                return
             move_uci = data.get("move")
             if not move_uci:
                 self.send(text_data=json.dumps({"error": "missing move"}))

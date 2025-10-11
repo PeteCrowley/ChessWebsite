@@ -19,8 +19,9 @@ export default function PlayVsPlayer() {
 	const chessGame = chessGameRef.current;
 
 	const [playerColor, setPlayerColor] = useState<Color | null>(null);
-	const [isPlayersTurn, setIsPlayersTurn] = useState(true);
+	const [isPlayersTurn, setIsPlayersTurn] = useState(false);
 	const [isGameOver, setIsGameOver] = useState(chessGame.isGameOver());
+    const [mostRecentPly, setMostRecentPly] = useState<number>(chessGame.history().length);
 
 	useEffect(() => {
 		if (!lastJsonMessage || typeof lastJsonMessage !== 'object') return;
@@ -29,6 +30,7 @@ export default function PlayVsPlayer() {
 			const moveUci = (lastJsonMessage as any).move;
 			try {
 				makeMove(moveUci);
+				setMostRecentPly(chessGame.history().length);
 			} catch (e) {
 				console.error('Failed to make move from opponent:', e);
 			}
@@ -36,6 +38,7 @@ export default function PlayVsPlayer() {
 		if (ev === 'send_pgn') {
 			const pgn = (lastJsonMessage as any).pgn;
 			chessGame.loadPgn(pgn);
+			setMostRecentPly(chessGame.history().length);
 			if (user === chessGame.getHeaders()['White']) {
 				setPlayerColor('w');
 				setIsPlayersTurn(chessGame.turn() === 'w');
@@ -49,6 +52,7 @@ export default function PlayVsPlayer() {
 	// function to make a move on the chess game, and update state accordingly
 	const makeMove = (move: { from: string; to: string; promotion?: string } | string) => {
 		chessGame.move(move);
+		setMostRecentPly(chessGame.history().length);
 		if (chessGame.isGameOver()) {
 			chessGame.setHeader(
 				'Result',
@@ -73,7 +77,7 @@ export default function PlayVsPlayer() {
 			try {
 				makeMove(move);
 				const uciMove = move.from + move.to + (move.promotion ?? '');
-				sendJsonMessage({ action: 'move', move: uciMove });
+				sendJsonMessage({ action: 'move', move: uciMove, user: user });
 				return true;
 			} catch (e: any) {
 				if (e instanceof Error && e.message === 'Invalid move') {
@@ -82,7 +86,7 @@ export default function PlayVsPlayer() {
 			}
 			return false;
 		},
-		[chessGame, playerColor]
+		[chessGame, playerColor, user]
 	);
 
 	return (
@@ -92,8 +96,9 @@ export default function PlayVsPlayer() {
 				gameTitle={`Player vs Player`}
 				onMoveRequest={handleMoveRequest}
 				pieceDraggingEnabled={isPlayersTurn && !isGameOver}
+                isGameActive={!isGameOver}
 				boardOrientation={playerColor === 'w' ? 'white' : 'black'}
-				currentPly={chessGame.history().length}
+				currentPly={mostRecentPly}
 			/>
 		</div>
 	);
