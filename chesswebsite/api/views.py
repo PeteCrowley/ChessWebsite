@@ -9,6 +9,8 @@ from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 from django.contrib.auth import logout as django_logout
 from django.contrib.auth import login as django_login
+from django.views.decorators.csrf import ensure_csrf_cookie
+from django.middleware.csrf import get_token
 
 # Create your views here
 def index(request):
@@ -107,3 +109,8 @@ class LogoutView(generics.GenericAPIView):
     def post(self, request):
         django_logout(request)
         return JsonResponse({'message': 'Logged out'}, status=200)
+
+@ensure_csrf_cookie
+def get_csrf_token(request):
+    token = get_token(request)
+    return JsonResponse({'status': 'ok', 'token': token})

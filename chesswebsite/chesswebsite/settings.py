@@ -81,17 +81,23 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'chesswebsite.urls'
 
+# Auth options
 CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:8080",
+    "http://localhost:8080",
     "https://chess-website-three.vercel.app"
 ]
 
 CORS_ALLOW_CREDENTIALS = True
-# Make cookies usable for cross-site XHR/fetch
 SESSION_COOKIE_SAMESITE = "None"
 SESSION_COOKIE_SECURE = True      # requires HTTPS (OK for Railway)
 CSRF_COOKIE_SAMESITE = "None"
 CSRF_COOKIE_SECURE = True
+CSRF_TRUSTED_ORIGINS = [
+    "http://127.0.0.1:8080",
+    "http://localhost:8080",
+    "https://chess-website-three.vercel.app",
+]
 
 TEMPLATES = [
     {

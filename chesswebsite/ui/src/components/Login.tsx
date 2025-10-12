@@ -14,7 +14,7 @@ export default function Login() {
 		e.preventDefault();
 		setError(null);
 		try {
-			auth.login(username, password);
+			await auth.login(username, password);
 			navigate('/');
 		} catch (err: any) {
 			setError(String(err));

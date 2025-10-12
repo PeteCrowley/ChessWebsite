@@ -4,10 +4,9 @@ import React, {
 	useEffect,
 	useState,
 	PropsWithChildren,
-	useMemo,
-	useCallback,
 } from 'react';
 import apiFetch from '../lib/api';
+import { get } from 'http';
 
 type User = { username: string } | null;
 
@@ -30,19 +29,27 @@ export function useAuth() {
 export function AuthProvider({ children }: PropsWithChildren) {
 	const [user, setUser] = useState<User>(null);
 	const [loading, setLoading] = useState(true);
-	const csrftoken = useMemo(
-		() =>
-			(document.cookie.split('; ').find((row) => row.startsWith('csrftoken=')) || '').split(
-				'='
-			)[1],
-		[]
-	);
 
-	const fetchCurrent = useCallback(async () => {
+	async function getCsrfToken() {
 		try {
-			const resp = await apiFetch('/api/auth/user/', {
-				headers: { 'X-CSRFToken': csrftoken },
-			});
+			const resp = await apiFetch('/api/auth/csrf/');
+			if (resp.ok) {
+				const data = await resp.json();
+				return data.token;
+			}
+		} catch (err) {
+		}
+		return null;
+	}
+
+	async function fetchCurrent() {
+		try {
+			const csrftoken = await getCsrfToken();
+			const resp = await apiFetch('/api/auth/user/',
+				{
+					headers: { 'X-CSRFToken': csrftoken},
+				}
+			);
 			if (resp.ok) {
 				const data = await resp.json();
 				setUser({ username: data.username });
@@ -54,16 +61,17 @@ export function AuthProvider({ children }: PropsWithChildren) {
 		} finally {
 			setLoading(false);
 		}
-	}, [csrftoken]);
+	}
 
 	useEffect(() => {
 		fetchCurrent();
-	}, [fetchCurrent]);
+	}, []);
 
 	async function login(username: string, password: string) {
+		const csrftoken = await getCsrfToken();
 		const resp = await apiFetch('/api/auth/login/', {
 			method: 'POST',
-			headers: { 'X-CSRFToken': csrftoken },
+			headers: { 'X-CSRFToken':  csrftoken},
 			body: JSON.stringify({ username, password }),
 		});
 		if (!resp.ok) throw new Error('Login failed');
@@ -76,15 +84,17 @@ export function AuthProvider({ children }: PropsWithChildren) {
 		password: string;
 		password2?: string;
 	}) {
+		const csrftoken = await getCsrfToken();
 		const resp = await apiFetch('/api/auth/register/', {
 			method: 'POST',
-			headers: { 'X-CSRFToken': csrftoken },
+			headers: { 'X-CSRFToken': csrftoken},
 			body: JSON.stringify(payload),
 		});
 		if (!resp.ok) throw new Error('Register failed');
 	}
 
 	async function logout() {
+		const csrftoken = await getCsrfToken();
 		await apiFetch('/api/auth/logout/', {
 			method: 'POST',
 			headers: { 'X-CSRFToken': csrftoken },

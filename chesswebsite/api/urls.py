@@ -12,4 +12,5 @@ urlpatterns = [
     path('auth/login/', views.LoginView.as_view(), name='api_token_auth'),
     path('auth/user/', views.CurrentUserView.as_view(), name='current-user'),
     path('auth/logout/', views.LogoutView.as_view(), name='auth-logout'),
+    path('auth/csrf/', views.get_csrf_token, name='get-csrf-token'),
 ]
