@@ -150,6 +150,9 @@ USE_TZ = True
 STATIC_URL = 'static/'
 # Serve the CRA static files (build/static)
 STATICFILES_DIRS = [BASE_DIR / 'ui' / 'build' / 'static']
+# If the files are not found then give up because they may be somewhere else
+if not os.path.exists(BASE_DIR / 'ui' / 'build' / 'static'):
+    STATICFILES_DIRS = []
 
 # Optional: path to the Stockfish engine binary (set in env)
 STOCKFISH_PATH = os.environ.get('STOCKFISH_PATH', '/usr/games/stockfish')
