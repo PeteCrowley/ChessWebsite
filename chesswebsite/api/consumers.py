@@ -12,7 +12,6 @@ from collections import deque
 
 from asgiref.sync import async_to_sync
 from channels.generic.websocket import WebsocketConsumer
-from .models import Game
 
 from datetime import date
 import chess.pgn
@@ -57,6 +56,7 @@ class PlayQueueConsumer(WebsocketConsumer):
                 break
 
     def receive(self, text_data):
+        from .models import Game
         try:
             data = json.loads(text_data)
         except Exception:
@@ -132,6 +132,7 @@ class PlayQueueConsumer(WebsocketConsumer):
 
 class PlayGameConsumer(WebsocketConsumer):
     def connect(self):
+        from .models import Game
         self.game_id = self.scope['url_route']['kwargs']['game_id']
         self.room_group_name = f'game_{self.game_id}'
 
@@ -167,6 +168,7 @@ class PlayGameConsumer(WebsocketConsumer):
         self.send(text_data=json.dumps({"event": "send_pgn", "pgn": pgn}))
 
     def disconnect(self, close_code):
+        from .models import Game
         if self.game_id not in _rooms:
             return
         # Leave room group
@@ -185,6 +187,7 @@ class PlayGameConsumer(WebsocketConsumer):
             game.save()
     
     def receive(self, text_data):
+        from .models import Game
         # Send message to room group
         try:
             data = json.loads(text_data)
