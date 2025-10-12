@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ReactiveChess from './ReactiveChess';
 import { Color } from 'chess.js';
 import GameViewer from './GameViewer';
+import apiFetch from '../lib/api';
 
 export default function PlayVsEngine() {
 	const chessGameRef = useRef(new ReactiveChess());
@@ -63,11 +64,10 @@ export default function PlayVsEngine() {
 
 		const fetchEngineMove = async () => {
 			try {
-				const response = await fetch(`/api/engine/move/`, {
+				const response = await apiFetch(`/api/engine/move/`, {
 					method: 'POST',
 					signal: ac.signal,
 					headers: {
-						'Content-Type': 'application/json',
 						Accept: 'application/json',
 						'X-CSRFToken': csrftoken,
 					},

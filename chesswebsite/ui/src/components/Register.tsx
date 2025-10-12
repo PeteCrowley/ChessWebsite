@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import './css/Auth.css';
+import apiFetch from '../lib/api';
 import { useNavigate } from 'react-router-dom';
 
 export default function Register() {
 	const [username, setUsername] = useState('');
-	const [email, setEmail] = useState('');
 	const [password, setPassword] = useState('');
 	const [password2, setPassword2] = useState('');
 	const [error, setError] = useState<string | null>(null);
@@ -22,9 +22,9 @@ export default function Register() {
 				setError('Passwords do not match');
 				return;
 			}
-			const resp = await fetch('/api/auth/register/', {
+			const resp = await apiFetch('/api/auth/register/', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrftoken },
+				headers: { 'X-CSRFToken': csrftoken },
 				body: JSON.stringify({ username: username, password: password }),
 			});
 			if (resp.ok) {

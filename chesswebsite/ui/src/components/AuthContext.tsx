@@ -6,6 +6,7 @@ import React, {
 	PropsWithChildren,
 	useMemo,
 } from 'react';
+import apiFetch from '../lib/api';
 
 type User = { username: string } | null;
 
@@ -38,7 +39,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
 	async function fetchCurrent() {
 		try {
-			const resp = await fetch('/api/auth/user/', { credentials: 'include' });
+			const resp = await apiFetch('/api/auth/user/');
 			if (resp.ok) {
 				const data = await resp.json();
 				setUser({ username: data.username });
@@ -57,10 +58,9 @@ export function AuthProvider({ children }: PropsWithChildren) {
 	}, []);
 
 	async function login(username: string, password: string) {
-		const resp = await fetch('/api/auth/login/', {
+		const resp = await apiFetch('/api/auth/login/', {
 			method: 'POST',
-			credentials: 'include',
-			headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrftoken },
+			headers: { 'X-CSRFToken': csrftoken },
 			body: JSON.stringify({ username, password }),
 		});
 		if (!resp.ok) throw new Error('Login failed');
@@ -73,18 +73,17 @@ export function AuthProvider({ children }: PropsWithChildren) {
 		password: string;
 		password2?: string;
 	}) {
-		const resp = await fetch('/api/auth/register/', {
+		const resp = await apiFetch('/api/auth/register/', {
 			method: 'POST',
-			headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrftoken },
+			headers: { 'X-CSRFToken': csrftoken },
 			body: JSON.stringify(payload),
 		});
 		if (!resp.ok) throw new Error('Register failed');
 	}
 
 	async function logout() {
-		await fetch('/api/auth/logout/', {
+		await apiFetch('/api/auth/logout/', {
 			method: 'POST',
-			credentials: 'include',
 			headers: { 'X-CSRFToken': csrftoken },
 		});
 		setUser(null);

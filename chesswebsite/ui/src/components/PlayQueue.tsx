@@ -1,13 +1,14 @@
 import useWebSocket, { ReadyState } from 'react-use-websocket';
-import React, { use, useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './css/PlayQueue.css';
 import { useAuth } from './AuthContext';
+import { buildWsUrl } from '../lib/api';
 
 export default function PlayQueue() {
 	const auth = useAuth();
+    const WS_URL = buildWsUrl(`/ws/play/queue/`);
 
-	const WS_URL = `ws://${window.location.host}/ws/play/queue/`;
 	const { sendJsonMessage, lastJsonMessage, readyState } = useWebSocket(WS_URL, {
 		shouldReconnect: () => true,
 	});

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import './css/GamesList.css';
 import { useAuth } from './AuthContext';
+import apiFetch from '../lib/api';
 
 interface Game {
 	id: string;
@@ -30,7 +31,7 @@ export default function GamesList() {
 		const fetchGames = async () => {
 			try {
 				setLoading(true);
-				const response = await fetch('/api/games/', {
+				const response = await apiFetch('/api/games/', {
 					headers: { Accept: 'application/json' },
 				});
 				if (!response.ok) throw new Error(`HTTP ${response.status}`);

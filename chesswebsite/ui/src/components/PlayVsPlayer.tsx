@@ -5,13 +5,14 @@ import GameViewer from './GameViewer';
 import { useParams, useNavigate } from 'react-router-dom';
 import useWebSocket from 'react-use-websocket';
 import { useAuth } from './AuthContext';
+import { buildWsUrl } from '../lib/api';
 
 export default function PlayVsPlayer() {
 	const auth = useAuth();
 	const username = auth.user?.username ?? 'anonymous';
 
 	const { gameId } = useParams();
-	const WS_URL = `ws://${window.location.host}/ws/play/${gameId}/`;
+	const WS_URL = buildWsUrl(`/ws/play/${gameId}/`);
 	const { sendJsonMessage, lastJsonMessage, readyState } = useWebSocket(WS_URL, {
 		shouldReconnect: () => true,
 	});

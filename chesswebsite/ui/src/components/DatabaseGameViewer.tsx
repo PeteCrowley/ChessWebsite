@@ -4,6 +4,7 @@ import { useParams } from 'react-router-dom';
 import ReactiveChess from './ReactiveChess';
 import './css/GameViewer.css';
 import GameViewer from './GameViewer';
+import apiFetch from '../lib/api';
 
 export default function DatabaseGameViewer() {
 	const { gameId } = useParams();
@@ -21,7 +22,7 @@ export default function DatabaseGameViewer() {
 		const fetchGame = async () => {
 			try {
 				setGameLoading(true);
-				const response = await fetch(`/api/games/${gameId}/`, {
+				const response = await apiFetch(`/api/games/${gameId}/`, {
 					signal: ac.signal,
 					headers: { Accept: 'application/json' },
 				});
