@@ -3,10 +3,6 @@ import { Chess, Move } from 'chess.js';
 export default class ReactiveChess extends Chess {
 	private _listeners = new Set<() => void>();
 
-	constructor(params?: any) {
-		super(params);
-	}
-
 	public subscribe(cb: () => void): () => void {
 		this._listeners.add(cb);
 		return () => {

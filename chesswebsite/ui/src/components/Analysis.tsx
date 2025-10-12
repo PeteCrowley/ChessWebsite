@@ -1,4 +1,4 @@
-import React, { useRef, useCallback, useMemo, useState } from 'react';
+import React, { useRef, useCallback, useState } from 'react';
 
 import ReactiveChess from './ReactiveChess';
 import './css/GameViewer.css';
@@ -12,16 +12,17 @@ export default function AnalysisBoard() {
 	const [fenInput, setFenInput] = useState<string>('');
 
 	// function to make a move on the chess game, and update state accordingly
-	const makeMove = (move: { from: string; to: string; promotion?: string } | string) => {
-		chessGame.move(move);
-		setMostRecentPly(chessGame.history().length);
-		if (chessGame.isGameOver()) {
-			chessGame.setHeader(
-				'Result',
-				chessGame.isDraw() ? '1/2-1/2' : chessGame.turn() === 'w' ? '0-1' : '1-0'
-			);
-		}
-	};
+	const makeMove = useCallback(
+		(move: { from: string; to: string; promotion?: string } | string) => {
+			const g = chessGameRef.current;
+			g.move(move);
+			setMostRecentPly(g.history().length);
+			if (g.isGameOver()) {
+				g.setHeader('Result', g.isDraw() ? '1/2-1/2' : g.turn() === 'w' ? '0-1' : '1-0');
+			}
+		},
+		[]
+	);
 
 	// handle when the player tries to make a move
 	const handleMoveRequest = useCallback(
@@ -39,7 +40,7 @@ export default function AnalysisBoard() {
 			}
 			return false;
 		},
-		[chessGame]
+		[makeMove]
 	);
 
 	const handleUndo = useCallback(() => {

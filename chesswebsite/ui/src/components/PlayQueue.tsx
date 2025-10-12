@@ -2,19 +2,15 @@ import useWebSocket, { ReadyState } from 'react-use-websocket';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './css/PlayQueue.css';
-import { useAuth } from './AuthContext';
 import { buildWsUrl } from '../lib/api';
 
 export default function PlayQueue() {
-	const auth = useAuth();
-    const WS_URL = buildWsUrl(`/ws/play/queue/`);
+	const WS_URL = buildWsUrl(`/ws/play/queue/`);
 
 	const { sendJsonMessage, lastJsonMessage, readyState } = useWebSocket(WS_URL, {
 		shouldReconnect: () => true,
 	});
 	const navigate = useNavigate();
-
-	const username = auth.user?.username ?? 'anonymous';
 
 	const [queued, setQueued] = useState<boolean>(false);
 	const [matchedGame, setMatchedGame] = useState<string | null>(null);
@@ -30,7 +26,7 @@ export default function PlayQueue() {
 			setMatchedGame((lastJsonMessage as any).game ?? null);
 			navigate(`/play/${(lastJsonMessage as any).game}`);
 		}
-	}, [lastJsonMessage]);
+	}, [lastJsonMessage, navigate]);
 
 	const handleJoin = () => {
 		if (readyState !== ReadyState.OPEN) return;

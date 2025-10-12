@@ -70,7 +70,7 @@ export default function GameViewer({
 		return () => {
 			unsub();
 		};
-	}, [chessGameInstance, initialPly]);
+	}, [chessGameInstance, initialPly, chessGame]);
 
 	useEffect(() => {
 		setBoardOrientationState(boardOrientation);
@@ -160,24 +160,25 @@ export default function GameViewer({
 		setPromotionMove(null);
 	}
 
-	const getPromotingPiece = (sourceSquare: string, targetSquare: string) => {
-		const rank = sourceSquare[1];
-		const pieceColor = rank === '8' ? 'w' : rank === '1' ? 'b' : null;
-		const sq = sourceSquare as Square;
-		const legalMoves = chessGame.moves({ square: sq, verbose: true });
-		const isLegalPromotion = legalMoves.some(
-			(mv) => mv.from === sourceSquare && mv.to === targetSquare
-		);
-		if (!isLegalPromotion) {
-			return false;
-		}
-		// update promotion move
-		setPromotionMove({
-			sourceSquare,
-			targetSquare,
-		});
-		return true;
-	};
+	const getPromotingPiece = useCallback(
+		(sourceSquare: string, targetSquare: string) => {
+			const sq = sourceSquare as Square;
+			const legalMoves = chessGame.moves({ square: sq, verbose: true });
+			const isLegalPromotion = legalMoves.some(
+				(mv) => mv.from === sourceSquare && mv.to === targetSquare
+			);
+			if (!isLegalPromotion) {
+				return false;
+			}
+			// update promotion move
+			setPromotionMove({
+				sourceSquare,
+				targetSquare,
+			});
+			return true;
+		},
+		[chessGame]
+	);
 
 	// the function called when a piece is dropped on a board (assuming pieces are draggable)
 	const handlePieceDropCallback = useCallback(
@@ -206,7 +207,7 @@ export default function GameViewer({
 			}
 			return moveAccepted;
 		},
-		[onMoveRequest, history, currentPly]
+		[onMoveRequest, history, currentPly, getPromotingPiece]
 	);
 
 	const handleResignRequest = useCallback(() => {
@@ -242,8 +243,8 @@ export default function GameViewer({
 		pieceDraggingEnabled,
 		boardOrientationState,
 		lastMoveSquares,
-		onMoveRequest,
-		chessGame,
+		handlePieceDropCallback,
+		memoBoardStyle,
 	]);
 
 	// ref for the notation list container so we can auto-scroll the current move into view

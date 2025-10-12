@@ -65,7 +65,7 @@ export default function GamesList() {
 		};
 
 		fetchGames();
-	}, []);
+	}, [username]);
 
 	// Simple PGN header parser
 	const parsePgnHeaders = (pgn: string): Record<string, string> => {

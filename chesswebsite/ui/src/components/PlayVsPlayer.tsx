@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, use } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ReactiveChess from './ReactiveChess';
 import { Color } from 'chess.js';
 import GameViewer from './GameViewer';
@@ -13,20 +13,38 @@ export default function PlayVsPlayer() {
 
 	const { gameId } = useParams();
 	const WS_URL = buildWsUrl(`/ws/play/${gameId}/`);
-	const { sendJsonMessage, lastJsonMessage, readyState } = useWebSocket(WS_URL, {
+	const { sendJsonMessage, lastJsonMessage } = useWebSocket(WS_URL, {
 		shouldReconnect: () => true,
 	});
 
 	const chessGameRef = useRef(new ReactiveChess());
-	const chessGame = chessGameRef.current;
 
 	const [playerColor, setPlayerColor] = useState<Color | null>(null);
 	const [isPlayersTurn, setIsPlayersTurn] = useState(false);
-	const [isGameOver, setIsGameOver] = useState(chessGame.isGameOver());
-	const [mostRecentPly, setMostRecentPly] = useState<number>(chessGame.history().length);
+	const [isGameOver, setIsGameOver] = useState(() => chessGameRef.current.isGameOver());
+	const [mostRecentPly, setMostRecentPly] = useState<number>(
+		() => chessGameRef.current.history().length
+	);
 	const [drawOfferActive, setDrawOfferActive] = useState<boolean>(false);
 
 	const navigate = useNavigate();
+
+	// function to make a move on the chess game, and update state accordingly
+	const makeMove = useCallback(
+		(move: { from: string; to: string; promotion?: string } | string) => {
+			const cg = chessGameRef.current;
+			cg.move(move);
+			if (drawOfferActive) setDrawOfferActive(false);
+			setMostRecentPly(cg.history().length);
+			if (cg.isGameOver()) {
+				cg.setHeader('Result', cg.isDraw() ? '1/2-1/2' : cg.turn() === 'w' ? '0-1' : '1-0');
+				setIsGameOver(true);
+				setIsPlayersTurn(false);
+			}
+			setIsPlayersTurn(cg.turn() === playerColor);
+		},
+		[chessGameRef, playerColor, drawOfferActive]
+	);
 
 	useEffect(() => {
 		if (!lastJsonMessage || typeof lastJsonMessage !== 'object') return;
@@ -35,26 +53,26 @@ export default function PlayVsPlayer() {
 			const moveUci = (lastJsonMessage as any).move;
 			try {
 				makeMove(moveUci);
-				setMostRecentPly(chessGame.history().length);
+				setMostRecentPly(chessGameRef.current.history().length);
 			} catch (e) {
 				console.error('Failed to make move from opponent:', e);
 			}
 		}
 		if (ev === 'send_pgn') {
 			const pgn = (lastJsonMessage as any).pgn;
-			chessGame.loadPgn(pgn);
-			setMostRecentPly(chessGame.history().length);
-			if (username === chessGame.getHeaders()['White']) {
+			chessGameRef.current.loadPgn(pgn);
+			setMostRecentPly(chessGameRef.current.history().length);
+			if (username === chessGameRef.current.getHeaders()['White']) {
 				setPlayerColor('w');
-				setIsPlayersTurn(chessGame.turn() === 'w');
-			} else if (username === chessGame.getHeaders()['Black']) {
+				setIsPlayersTurn(chessGameRef.current.turn() === 'w');
+			} else if (username === chessGameRef.current.getHeaders()['Black']) {
 				setPlayerColor('b');
-				setIsPlayersTurn(chessGame.turn() === 'b');
+				setIsPlayersTurn(chessGameRef.current.turn() === 'b');
 			}
 		}
 		if (ev === 'game_over') {
-			chessGame.loadPgn((lastJsonMessage as any).pgn);
-			setMostRecentPly(chessGame.history().length);
+			chessGameRef.current.loadPgn((lastJsonMessage as any).pgn);
+			setMostRecentPly(chessGameRef.current.history().length);
 			setIsGameOver(true);
 			setIsPlayersTurn(false);
 			navigate(`/game/${gameId}`);
@@ -62,23 +80,7 @@ export default function PlayVsPlayer() {
 		if (ev === 'draw_offered') {
 			setDrawOfferActive(true);
 		}
-	}, [lastJsonMessage, username, chessGame]);
-
-	// function to make a move on the chess game, and update state accordingly
-	const makeMove = (move: { from: string; to: string; promotion?: string } | string) => {
-		chessGame.move(move);
-		if (drawOfferActive) setDrawOfferActive(false);
-		setMostRecentPly(chessGame.history().length);
-		if (chessGame.isGameOver()) {
-			chessGame.setHeader(
-				'Result',
-				chessGame.isDraw() ? '1/2-1/2' : chessGame.turn() === 'w' ? '0-1' : '1-0'
-			);
-			setIsGameOver(true);
-			setIsPlayersTurn(false);
-		}
-		setIsPlayersTurn(chessGame.turn() === playerColor);
-	};
+	}, [lastJsonMessage, username, navigate, gameId, makeMove]);
 
 	// handle when the player tries to make a move
 	const handleMoveRequest = useCallback(
@@ -103,13 +105,13 @@ export default function PlayVsPlayer() {
 			}
 			return false;
 		},
-		[chessGame, playerColor, username]
+		[makeMove, sendJsonMessage]
 	);
 
 	return (
 		<div>
 			<GameViewer
-				chessGame={chessGame}
+				chessGame={chessGameRef.current}
 				gameTitle={`Player vs Player`}
 				onMoveRequest={handleMoveRequest}
 				pieceDraggingEnabled={isPlayersTurn && !isGameOver}

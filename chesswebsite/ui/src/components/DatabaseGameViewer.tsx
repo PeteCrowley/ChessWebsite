@@ -40,7 +40,7 @@ export default function DatabaseGameViewer() {
 		};
 		fetchGame();
 		return () => ac.abort();
-	}, [gameId]);
+	}, [gameId, chessGame]);
 
 	if (gameLoading) return <div>Loading game {gameId}…</div>;
 	if (error) return <div style={{ color: 'crimson' }}>Error: {error}</div>;

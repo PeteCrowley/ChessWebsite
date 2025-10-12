@@ -5,6 +5,7 @@ import React, {
 	useState,
 	PropsWithChildren,
 	useMemo,
+	useCallback,
 } from 'react';
 import apiFetch from '../lib/api';
 
@@ -37,13 +38,11 @@ export function AuthProvider({ children }: PropsWithChildren) {
 		[]
 	);
 
-	async function fetchCurrent() {
+	const fetchCurrent = useCallback(async () => {
 		try {
-			const resp = await apiFetch('/api/auth/user/',
-				{
-					headers: { 'X-CSRFToken': csrftoken },
-				}
-			);
+			const resp = await apiFetch('/api/auth/user/', {
+				headers: { 'X-CSRFToken': csrftoken },
+			});
 			if (resp.ok) {
 				const data = await resp.json();
 				setUser({ username: data.username });
@@ -55,11 +54,11 @@ export function AuthProvider({ children }: PropsWithChildren) {
 		} finally {
 			setLoading(false);
 		}
-	}
+	}, [csrftoken]);
 
 	useEffect(() => {
 		fetchCurrent();
-	}, []);
+	}, [fetchCurrent]);
 
 	async function login(username: string, password: string) {
 		const resp = await apiFetch('/api/auth/login/', {

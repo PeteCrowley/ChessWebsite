@@ -19,20 +19,23 @@ export default function PlayVsEngine() {
 	).split('=')[1];
 
 	// function to make a move on the chess game, and update state accordingly
-	const makeMove = (move: { from: string; to: string; promotion?: string } | string) => {
-		chessGame.move(move);
-		// update most recent ply after applying the move
-		setMostRecentPly(chessGame.history().length);
-		setIsPlayersTurn(chessGame.turn() === playerColor);
-		if (chessGame.isGameOver()) {
-			chessGame.setHeader(
-				'Result',
-				chessGame.isDraw() ? '1/2-1/2' : chessGame.turn() === 'w' ? '0-1' : '1-0'
-			);
-			setIsGameOver(true);
-			setIsPlayersTurn(false);
-		}
-	};
+	const makeMove = useCallback(
+		(move: { from: string; to: string; promotion?: string } | string) => {
+			chessGame.move(move);
+			// update most recent ply after applying the move
+			setMostRecentPly(chessGame.history().length);
+			setIsPlayersTurn(chessGame.turn() === playerColor);
+			if (chessGame.isGameOver()) {
+				chessGame.setHeader(
+					'Result',
+					chessGame.isDraw() ? '1/2-1/2' : chessGame.turn() === 'w' ? '0-1' : '1-0'
+				);
+				setIsGameOver(true);
+				setIsPlayersTurn(false);
+			}
+		},
+		[chessGame, playerColor]
+	);
 
 	// handle when the player tries to make a move
 	const handleMoveRequest = useCallback(
@@ -54,7 +57,7 @@ export default function PlayVsEngine() {
 			}
 			return false;
 		},
-		[chessGame, playerColor]
+		[chessGame, playerColor, makeMove]
 	);
 
 	// whenever it is the engine's turn, we will ask the server for and make a move
@@ -90,7 +93,7 @@ export default function PlayVsEngine() {
 			}
 		});
 		return () => ac.abort();
-	}, [isPlayersTurn, isGameOver, chessGame]);
+	}, [isPlayersTurn, isGameOver, chessGame, csrftoken, makeMove, playerColor]);
 
 	const chooseColor = (color: Color) => {
 		setPlayerColor(color);
