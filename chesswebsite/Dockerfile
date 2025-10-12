@@ -27,6 +27,5 @@ USER appuser
 
 # Ensure the deploy directory exists and contains the entrypoint
 WORKDIR /app
-
 # Use the entrypoint to run migrations then start the server
-ENTRYPOINT ["./start.sh"]
+CMD ["./start.sh"]

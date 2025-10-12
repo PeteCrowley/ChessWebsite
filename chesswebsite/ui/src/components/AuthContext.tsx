@@ -39,7 +39,11 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
 	async function fetchCurrent() {
 		try {
-			const resp = await apiFetch('/api/auth/user/');
+			const resp = await apiFetch('/api/auth/user/',
+				{
+					headers: { 'X-CSRFToken': csrftoken },
+				}
+			);
 			if (resp.ok) {
 				const data = await resp.json();
 				setUser({ username: data.username });

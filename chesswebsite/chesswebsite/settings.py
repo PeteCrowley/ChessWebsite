@@ -57,6 +57,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'channels',
+    'corsheaders',
     'api',
     'ui',
 ]
@@ -70,6 +71,7 @@ CHANNEL_LAYERS = {
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -78,6 +80,18 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'chesswebsite.urls'
+
+CORS_ALLOWED_ORIGINS = [
+    "http://127.0.0.1:8080",
+    "https://chess-website-three.vercel.app"
+]
+
+CORS_ALLOW_CREDENTIALS = True
+# Make cookies usable for cross-site XHR/fetch
+SESSION_COOKIE_SAMESITE = "None"
+SESSION_COOKIE_SECURE = True      # requires HTTPS (OK for Railway)
+CSRF_COOKIE_SAMESITE = "None"
+CSRF_COOKIE_SECURE = True
 
 TEMPLATES = [
     {
