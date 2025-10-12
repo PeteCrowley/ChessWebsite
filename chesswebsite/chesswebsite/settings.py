@@ -13,21 +13,36 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 import os
 from pathlib import Path
 
+# Load .env files when python-dotenv is available
+try:
+    from dotenv import load_dotenv
+except Exception:
+    load_dotenv = None
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+if load_dotenv:
+    # look for .env files next to this settings module
+    env_dir = BASE_DIR / 'chesswebsite'
+    for fname in ('.env', '.env.pgdev', '.env.pgprod'):
+        p = env_dir / fname
+        if p.exists():
+            load_dotenv(str(p))
+            break
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-zh*h9_t0)-psc@f$zu#4mf92^6s70_$zaa1+zzen((i)5p%0e8'
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-zh*h9_t0)-psc@f$zu#4mf92^6s70_$zaa1+zzen((i)5p%0e8')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DEBUG', 'True').lower() in ('1', 'true', 'yes')
 
-ALLOWED_HOSTS = []
-
+# ALLOWED_HOSTS can be provided as a comma-separated list in env
+ALLOWED_HOSTS = [h for h in os.environ.get('ALLOWED_HOSTS', '').split(',') if h]
 
 # Application definition
 
@@ -89,11 +104,11 @@ ASGI_APPLICATION = 'chesswebsite.asgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ["DB_NAME"],
-        'USER': os.environ["DB_USER"],
-        'PASSWORD': os.environ["DB_PASSWORD"],
-        'HOST': os.environ["PGHOST"],
-        'PORT': os.environ["PGPORT"],
+        'NAME': os.environ.get('PGNAME'),
+        'USER': os.environ.get('PGUSER'),
+        'PASSWORD': os.environ.get('PGPASSWORD'),
+        'HOST': os.environ.get('PGHOST'),
+        'PORT': os.environ.get('PGPORT'),
     }
 }
 
@@ -134,9 +149,10 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 # Serve the CRA static files (build/static)
-STATICFILES_DIRS = [
-    BASE_DIR / 'ui' / 'build' / 'static',
-]
+STATICFILES_DIRS = [BASE_DIR / 'ui' / 'build' / 'static']
+
+# Optional: path to the Stockfish engine binary (set in env)
+STOCKFISH_PATH = os.environ.get('STOCKFISH_PATH', '/usr/games/stockfish')
 
 
 # Default primary key field type
