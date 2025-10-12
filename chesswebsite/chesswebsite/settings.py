@@ -85,12 +85,6 @@ ASGI_APPLICATION = 'chesswebsite.asgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
-os.environ.setdefault('DB_NAME', 'chessdb')
-os.environ.setdefault('DB_USER', 'petecrowley')
-os.environ.setdefault('DB_PASSWORD', '')
-os.environ.setdefault("PGHOST", "localhost")
-os.environ.setdefault("PGPORT", "5432")
-
 
 DATABASES = {
     'default': {
