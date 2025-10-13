@@ -32,10 +32,6 @@ if load_dotenv:
             load_dotenv(str(p))
             break
 
-
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
-
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.environ.get('SECRET_KEY')
 
@@ -188,9 +184,5 @@ if not os.path.exists(BASE_DIR / 'ui' / 'build' / 'static'):
     STATICFILES_DIRS = []
 
 STOCKFISH_PATH = os.environ.get('STOCKFISH_PATH')
-
-
-# Default primary key field type
-# https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
