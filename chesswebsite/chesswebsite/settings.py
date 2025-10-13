@@ -180,8 +180,7 @@ STATICFILES_DIRS = [BASE_DIR / 'ui' / 'build' / 'static']
 if not os.path.exists(BASE_DIR / 'ui' / 'build' / 'static'):
     STATICFILES_DIRS = []
 
-# Optional: path to the Stockfish engine binary (set in env)
-STOCKFISH_PATH = os.environ.get('STOCKFISH_PATH', '/usr/games/stockfish')
+STOCKFISH_PATH = os.environ.get('STOCKFISH_PATH')
 
 
 # Default primary key field type

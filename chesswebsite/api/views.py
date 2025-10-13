@@ -11,6 +11,7 @@ from django.contrib.auth import logout as django_logout
 from django.contrib.auth import login as django_login
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.middleware.csrf import get_token
+from django.conf import settings
 
 # Create your views here
 def index(request):
@@ -53,7 +54,15 @@ class GetEngineMoveView(generics.GenericAPIView):
         else:
             time_limit = 0.1  # default time limit
         
-        eg = engine.SimpleEngine.popen_uci("api/stockfish/stockfish-macos-m1-apple-silicon")
+        try:
+            eg = engine.SimpleEngine.popen_uci(settings.STOCKFISH_PATH)
+        except Exception as e:
+            print("Error starting engine:", str(e))
+            return JsonResponse({
+                "status": "error",
+                "error": "engine_error",
+                "message": f"Could not start engine: {str(e)}",
+                }, status=500)
         result = eg.play(board, engine.Limit(time_limit))
         eg.quit()
 
