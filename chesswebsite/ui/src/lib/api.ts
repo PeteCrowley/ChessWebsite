@@ -42,7 +42,8 @@ export async function apiFetch(path: string, opts: RequestInit = {}) {
 	const merged = { ...defaultOpts, ...opts } as RequestInit;
 	// Merge headers explicitly
 	merged.headers = { ...(defaultOpts.headers || {}), ...(opts.headers || {}) };
-	return fetch(url, merged);
+    const resp = await fetch(url, merged)
+	return resp;
 }
 
 export default apiFetch;

@@ -26,7 +26,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 if load_dotenv:
     # look for .env files next to this settings module
     env_dir = BASE_DIR / 'chesswebsite'
-    for fname in ('.env', '.env.pgdev', '.env.pgprod'):
+    for fname in ('.env', '.env.local', '.env.pgdev', '.env.pgprod'):
         p = env_dir / fname
         if p.exists():
             load_dotenv(str(p))
@@ -122,7 +122,14 @@ ASGI_APPLICATION = 'chesswebsite.asgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-if os.environ.get('DATABASE_URL'):
+if os.environ.get('USE_SQLITE', 'False').lower() in ('1', 'true', 'yes'):
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
+elif os.environ.get('DATABASE_URL'):
     DATABASES = {
         'default': dj_database_url.parse(os.environ.get('DATABASE_URL'), conn_max_age=600, ssl_require=True)
     }

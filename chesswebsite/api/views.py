@@ -104,14 +104,16 @@ class LoginView(generics.GenericAPIView):
             django_login(request, user)
             return JsonResponse({'message': 'Login successful.'}, status=200)
         else:
-            return JsonResponse({'error': 'Invalid credentials.'}, status=400)
+            return JsonResponse({'error': 'Invalid credentials.'}, status=401)
         
 class CurrentUserView(generics.GenericAPIView):
     def get(self, request):
+        # Return 200 in all cases; if the user is not authenticated, return username: null.
+        # This avoids producing 401 network entries in the browser for normal unauthenticated visitors.
         if request.user.is_authenticated:
             return JsonResponse({'username': request.user.username}, status=200)
         else:
-            return JsonResponse({'error': 'User not authenticated.'}, status=401)
+            return JsonResponse({'username': None}, status=200)
 
 
 class LogoutView(generics.GenericAPIView):

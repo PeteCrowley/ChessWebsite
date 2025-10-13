@@ -7,6 +7,7 @@ wheels/
 *.egg-info
 .vscode/
 .env.*
+!.env.local.default
 
 # Virtual environments
 .venv
