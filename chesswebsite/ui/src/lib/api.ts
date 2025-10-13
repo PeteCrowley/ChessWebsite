@@ -23,11 +23,21 @@ export function buildUrl(path: string) {
 	return `${API_BASE}/${path.replace(/^\//, '')}`;
 }
 
+async function getCsrfToken() {
+    const url = buildUrl('/api/auth/csrf/');
+    const resp = await fetch(url, { credentials: 'include' });
+    if (resp.ok) {
+        const data = await resp.json();
+        return data.token;
+    }
+    return null;
+}
+
 export async function apiFetch(path: string, opts: RequestInit = {}) {
 	const url = buildUrl(path);
 	const defaultOpts: RequestInit = {
 		credentials: 'include',
-		headers: { 'Content-Type': 'application/json' },
+		headers: { 'Content-Type': 'application/json', 'X-CSRFToken': await getCsrfToken() },
 	};
 	const merged = { ...defaultOpts, ...opts } as RequestInit;
 	// Merge headers explicitly

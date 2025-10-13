@@ -14,10 +14,6 @@ export default function PlayVsEngine() {
 	const [isGameOver, setIsGameOver] = useState(chessGame.isGameOver());
 	const [mostRecentPly, setMostRecentPly] = useState<number>(chessGame.history().length);
 
-	const csrftoken = (
-		document.cookie.split('; ').find((row) => row.startsWith('csrftoken=')) || ''
-	).split('=')[1];
-
 	// function to make a move on the chess game, and update state accordingly
 	const makeMove = useCallback(
 		(move: { from: string; to: string; promotion?: string } | string) => {
@@ -72,7 +68,6 @@ export default function PlayVsEngine() {
 					signal: ac.signal,
 					headers: {
 						Accept: 'application/json',
-						'X-CSRFToken': csrftoken,
 					},
 					body: JSON.stringify({ fen: chessGame.fen() }),
 				});
@@ -93,7 +88,7 @@ export default function PlayVsEngine() {
 			}
 		});
 		return () => ac.abort();
-	}, [isPlayersTurn, isGameOver, chessGame, csrftoken, makeMove, playerColor]);
+	}, [isPlayersTurn, isGameOver, chessGame, makeMove, playerColor]);
 
 	const chooseColor = (color: Color) => {
 		setPlayerColor(color);
